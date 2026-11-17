@@ -186,7 +186,7 @@
 
       /* 语音 */
       h += '<section class="card half" id="s-phon"><header><h2>语音</h2><span class="sub">Pronunciation</span></header><div class="syls">' + w.syl.map(function (s, k) {
-        return '<button class="syl" data-say="' + esc(word.charAt(k) || word) + '" title="点击听这个音节"><span class="big">' + esc(s.py) + '</span>' + toneSvg(s.t) + '<span class="parts">声母 <b>' + esc(s.i) + '</b> · 韵母 <b>' + esc(s.f) + '</b><br>' + TONE[s.t] + '</span></button>';
+        return '<button class="syl" data-say="' + esc((k === w.syl.length - 1 && word.length > w.syl.length ? word.slice(k) : word.charAt(k)) || word) + '" title="点击听这个音节"><span class="big">' + esc(s.py) + '</span>' + toneSvg(s.t) + '<span class="parts">声母 <b>' + esc(s.i) + '</b> · 韵母 <b>' + esc(s.f) + '</b><br>' + TONE[s.t] + '</span></button>';
       }).join('') + '</div><h3>发音要点</h3><ul class="notes">' + w.phon.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul></section>';
 
       /* 笔顺 */
