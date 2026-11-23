@@ -35,22 +35,22 @@ Phát âm dùng giọng đọc tiếng Trung của trình duyệt (Chrome / Edge
 - Pinyin dùng phông `--pinyin` (Noto Serif / Cambria); phông pinyin luôn đứng đầu trong `--serif` và `--sans`; Fraunces và Noto Serif SC vẽ lệch dấu thanh.
 
 ## Giỏ từ vựng · Slide · Bài tập (studio.js / studio.css)
-- **Giỏ từ**: nút “加入词汇篮” trên mỗi trang từ, hoặc nút 词汇篮 trên thanh đầu trang (thêm theo chữ hoặc số thứ tự, ví dụ ). Lưu trong localStorage .
+- **Giỏ từ**: nút “加入词汇篮” trên mỗi trang từ, hoặc nút 词汇篮 trên thanh đầu trang (thêm theo chữ hoặc số thứ tự, ví dụ `1-20`). Lưu trong localStorage `h1ref-cart`.
 - **Slide** (dựng ngay từ dữ liệu, không cần AI): bìa → mỗi từ 3 trang (thẻ từ, 笔顺, 搭配·例句) → trang ôn tập; tuỳ chọn thêm “情境对话” do AI viết.
-  - 5 mẫu, mỗi mẫu một bố cục riêng (, farm và diner dùng chung ):
+  - 5 mẫu, mỗi mẫu một bố cục riêng (`LAY.ink / shop / panel`; farm và diner dùng chung `LAY_OLD`):
     - 朴物·新中式: giấy màu be, lá bạch quả vẽ mực, con dấu, chữ dọc;
     - 复古小铺: giấy kẻ ô, dải đen, vé đỏ, khung nét đứt;
     - 暖调面板: nền hoa văn thảm, bảng kem, cột danh sách từ bên trái, vòng tiến độ;
     - 秋日农场; 小餐馆.
-  - Toàn bộ bảng màu sinh từ **một màu chủ đạo** (): nền pastel gần màu đó, thẻ, khung ảnh, màu chữ; màu phụ  là màu đối (xoay hue 150°).
+  - Toàn bộ bảng màu sinh từ **một màu chủ đạo** (`themeNow`): nền pastel gần màu đó, thẻ, khung ảnh, màu chữ; màu phụ `a2` là màu đối (xoay hue 150°).
   - Hoạ tiết (lá bạch quả, con dấu, vòng tiến độ, mũi tên) vẽ bằng canvas thành PNG trong suốt.
   - Trình chiếu trên web: nét chữ chạy trực tiếp (HanziWriter), nút 🔊 đọc to.
-  - Xuất PPTX ( — PptxGenJS 3.12.0): nét chữ là GIF động ( — gifenc 1.0.3, bọc thành biến toàn cục ), ghi chú cho giáo viên nằm ở Notes. PPTX không có âm thanh. Mở trực tiếp bằng  thì ảnh không nhúng được vào PPTX.
+  - Xuất PPTX (`vendor/pptxgen.bundle.js` — PptxGenJS 3.12.0): nét chữ là GIF động (`vendor/gifenc.js` — gifenc 1.0.3, bọc thành biến toàn cục `window.gifenc`), ghi chú cho giáo viên nằm ở Notes. PPTX không có âm thanh. Mở trực tiếp bằng `file://` thì ảnh không nhúng được vào PPTX.
 - **Bài tập**: 选词填空, 听力, 翻译, 阅读理解, 连词成句, 连线.
   - “快速生成” dùng câu ví dụ có sẵn, ra ngay.
   - “AI 生成”: giáo viên chọn nhà cung cấp và dán API key của mình trong 「AI 设置」. Key lưu riêng theo từng nhà cung cấp, chỉ trong trình duyệt.
-    - Các dịch vụ OpenAI‑compatible gọi bằng fetch + SSE: DeepSeek (mặc định, ), 通义千问, Kimi, 豆包, 硅基流动, 百度千帆, 腾讯混元, ChatGPT, “其他”.
-    - Claude dùng .
+    - Các dịch vụ OpenAI‑compatible gọi bằng fetch + SSE: DeepSeek (mặc định, `deepseek-chat`), 通义千问, Kimi, 豆包, 硅基流动, 百度千帆, 腾讯混元, ChatGPT, “其他”.
+    - Claude dùng `@anthropic-ai/sdk`.
     - Model và địa chỉ API sửa được trong mục “高级”.
     - Đã kiểm tra (2026‑11): các API trên đều cho phép trình duyệt gọi trực tiếp (CORS); 智谱 GLM thì không nên không đưa vào danh sách.
   - Mỗi dạng bài một yêu cầu chạy song song, hiện dần từng câu (JSON Lines). System prompt chứa cả bảng 300 từ và giống hệt nhau giữa các lần gọi, nên DeepSeek/Qwen tự cache.
