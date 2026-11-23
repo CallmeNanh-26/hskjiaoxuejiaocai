@@ -199,3 +199,4 @@ body.st-open { overflow: hidden; }
 .sl.live.rev .hid { opacity: 1; }
 .sl .onlyq { transition: opacity .35s; }
 .sl.live.rev .onlyq { opacity: 0; }
+.hint .ver { display: block; margin-bottom: 6px; padding: 3px 8px; border-radius: 8px; background: var(--ok-soft); color: var(--ok); font-weight: 600; }

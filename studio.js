@@ -979,7 +979,7 @@
     $('deckTitle').value = deck.title;
     var P = [['cover', '封面'], ['warm', '课堂导入（引入活动）'], ['word', '词卡（字、拼音、意思、图片）'], ['stroke', '词卡上的笔顺动画'], ['use', '搭配 · 例句'], ['dialog', '情境对话（AI 生成）'], ['gPic', '游戏：看图说词'], ['gCloze', '游戏：选词填空'], ['gTrans', '游戏：翻译挑战'], ['review', '游戏：读一读']];
     $('deckParts').innerHTML = P.map(function (p) { return '<label><input type="checkbox" data-part="' + p[0] + '"' + (deck.parts[p[0]] ? ' checked' : '') + '> ' + p[1] + '</label>'; }).join('');
-    $('deckHint').innerHTML = '<b>网页放映</b>：笔顺实时演示，点 🔊 朗读。<br><b>PPTX</b>：笔顺是 GIF 动图（放映时会动）；词和例句旁的 🔊 已嵌入朗读音频（神经网络语音），放映时点击播放（AI 生成的对话没有音频）。' + (location.protocol === 'file:' ? '<br><b>注意</b>：直接打开本地文件时，PPT 里放不进图片和音频；请用网站（GitHub Pages）或本地服务器打开。' : '');
+    $('deckHint').innerHTML = '<span class="ver">版本 2026-11-24 · 朗读音频 ' + Object.keys(window.H1_AUDIO || {}).length + ' 条' + (location.protocol === 'file:' ? ' · 本地文件模式（PPT 无法放入音频）' : '') + '</span><b>网页放映</b>：笔顺实时演示，点 🔊 朗读。<br><b>PPTX</b>：笔顺是 GIF 动图（放映时会动）；词和例句旁的 🔊 已嵌入朗读音频（神经网络语音），放映时点击播放（AI 生成的对话没有音频）。' + (location.protocol === 'file:' ? '<br><b>注意</b>：直接打开本地文件时，PPT 里放不进图片和音频；请用网站（GitHub Pages）或本地服务器打开。' : '');
     renderThumbs();
   }
   function renderThumbs() {
