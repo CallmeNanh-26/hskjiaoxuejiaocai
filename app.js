@@ -20,10 +20,23 @@
     voice = vs.filter(function (v) { return /Xiaoxiao|Yunxi|Google|Tingting|Huihui/i.test(v.name); })[0] || vs[0] || null;
   }
   if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+  /* 优先播放预先生成的音频（data/audio.js → audio/<id>.mp3）；没有音频的文本才用浏览器朗读 */
+  var AUDIO = window.H1_AUDIO || {}, player = null;
   function speak(text, rate) {
+    var key = String(text).replace(/——/g, '。').replace(/\s+/g, '');
+    if (player) { player.pause(); player = null; }
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    if (AUDIO[key]) {
+      var a = player = new Audio('audio/' + AUDIO[key] + '.mp3');
+      a.defaultPlaybackRate = a.playbackRate = rate && rate < 0.7 ? 0.7 : 1; a.preservesPitch = true;
+      a.play().catch(function () { if (player === a) ttsSpeak(key, rate); });
+      return;
+    }
+    ttsSpeak(key, rate);
+  }
+  function ttsSpeak(text, rate) {
     if (!('speechSynthesis' in window)) return toast('此浏览器不支持朗读，请使用 Chrome 或 Edge。');
-    speechSynthesis.cancel();
-    var u = new SpeechSynthesisUtterance(text.replace(/——/g, '。').replace(/\s+/g, ''));
+    var u = new SpeechSynthesisUtterance(text);
     u.lang = 'zh-CN'; u.rate = rate || 0.85; if (voice) u.voice = voice;
     else if (speechSynthesis.getVoices().length) toast('电脑上没有中文语音。请在系统设置里添加"中文（简体）"语音。');
     speechSynthesis.speak(u);

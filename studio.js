@@ -979,7 +979,7 @@
     $('deckTitle').value = deck.title;
     var P = [['cover', '封面'], ['warm', '课堂导入（引入活动）'], ['word', '词卡（字、拼音、意思、图片）'], ['stroke', '词卡上的笔顺动画'], ['use', '搭配 · 例句'], ['dialog', '情境对话（AI 生成）'], ['gPic', '游戏：看图说词'], ['gCloze', '游戏：选词填空'], ['gTrans', '游戏：翻译挑战'], ['review', '游戏：读一读']];
     $('deckParts').innerHTML = P.map(function (p) { return '<label><input type="checkbox" data-part="' + p[0] + '"' + (deck.parts[p[0]] ? ' checked' : '') + '> ' + p[1] + '</label>'; }).join('');
-    $('deckHint').innerHTML = '<b>网页放映</b>：笔顺实时演示，点 🔊 朗读。<br><b>PPTX</b>：笔顺是 GIF 动图（放映时会动）。PPT 里没有声音——浏览器朗读无法存进文件，上课要读音时请用网页放映。' + (location.protocol === 'file:' ? '<br><b>注意</b>：直接打开本地文件时，PPT 里放不进图片；请用网站（GitHub Pages）或本地服务器打开。' : '');
+    $('deckHint').innerHTML = '<b>网页放映</b>：笔顺实时演示，点 🔊 朗读。<br><b>PPTX</b>：笔顺是 GIF 动图（放映时会动）；词和例句旁的 🔊 已嵌入朗读音频（神经网络语音），放映时点击播放（AI 生成的对话没有音频）。' + (location.protocol === 'file:' ? '<br><b>注意</b>：直接打开本地文件时，PPT 里放不进图片和音频；请用网站（GitHub Pages）或本地服务器打开。' : '');
     renderThumbs();
   }
   function renderThumbs() {
@@ -1149,6 +1149,25 @@
       im.src = src;
     }));
   }
+  /* 朗读按钮：PPT 里嵌入预先生成的 MP3（放映时点击图标播放） */
+  var audioCache = {}, iconCache = {};
+  function audioData(text) {
+    var id = (window.H1_AUDIO || {})[String(text).replace(/——/g, '。').replace(/\s+/g, '')];
+    if (!id) return Promise.resolve(null);
+    return audioCache[id] || (audioCache[id] = fetch('audio/' + id + '.mp3').then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(function (b) {
+      var u = new Uint8Array(b), bin = ''; for (var o = 0; o < u.length; o += 0x8000) bin += String.fromCharCode.apply(null, u.subarray(o, o + 0x8000));
+      return 'audio/mpeg;base64,' + btoa(bin);
+    }).catch(function () { return null; }));
+  }
+  function sayIcon(color) {
+    if (iconCache[color]) return iconCache[color];
+    var S = 160, cv = canvas(S, S), g = cv.getContext('2d'), fg = onColor(color);
+    g.fillStyle = color; g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 2, 0, 7); g.fill();
+    g.fillStyle = fg; g.strokeStyle = fg; g.lineCap = 'round'; g.lineJoin = 'round';
+    g.beginPath(); g.moveTo(S * 0.27, S * 0.42); g.lineTo(S * 0.37, S * 0.42); g.lineTo(S * 0.5, S * 0.3); g.lineTo(S * 0.5, S * 0.7); g.lineTo(S * 0.37, S * 0.58); g.lineTo(S * 0.27, S * 0.58); g.closePath(); g.fill();
+    g.lineWidth = S * 0.055; g.beginPath(); g.arc(S * 0.5, S * 0.5, S * 0.12, -0.9, 0.9); g.stroke(); g.beginPath(); g.arc(S * 0.5, S * 0.5, S * 0.22, -0.9, 0.9); g.stroke();
+    return (iconCache[color] = cv.toDataURL('image/png'));
+  }
   var hex = function (c) { return (c || '#000000').replace('#', '').toUpperCase(); };
   var tick = function () { return new Promise(function (r) { setTimeout(r, 0); }); };
   async function exportPptx(btn) {
@@ -1162,7 +1181,7 @@
       var pptx = new PptxGenJS();
       pptx.layout = 'LAYOUT_16x9'; pptx.title = deck.title || 'HSK1 生词'; pptx.author = 'HSK1 教学参考';
       pptx.defineSlideMaster({ title: 'BG', background: { data: background(th) } });
-      var missingImg = 0;
+      var missingImg = 0, hasAudio = 0;
       for (var i = 0; i < slides.length; i++) {
         btn.textContent = '正在生成 ' + (i + 1) + ' / ' + slides.length + '…'; await tick();
         var s = slides[i], hasAns = s.els.some(function (x) { return x.hide; });
@@ -1192,8 +1211,9 @@
             sl.addImage(Object.assign({}, box, { data: strokeGif(e.ch, th, e.bg) }));
             await tick();
           } else if (e.t === 'say') {
-            sl.addShape('ellipse', Object.assign({}, box, { fill: { color: hex(e.fill || th.accent) }, line: { type: 'none' } }));
-            sl.addText('♪', Object.assign({}, box, { align: 'center', valign: 'middle', margin: 0, fontSize: 14, color: hex(onColor(e.fill || th.accent)), fontFace: 'Segoe UI Symbol' }));
+            var mp3 = await audioData(e.text), icon = sayIcon(e.fill || th.accent);
+            if (mp3) { sl.addMedia(Object.assign({}, box, { type: 'audio', data: mp3, extn: 'mp3', cover: icon })); hasAudio++; }
+            else sl.addImage(Object.assign({}, box, { data: icon }));
           }
         }
         if (s.notes) sl.addNotes((hasAns ? (pass ? '【答案】\n' : '【题目】下一页是答案。\n') : '') + s.notes);
@@ -1202,7 +1222,7 @@
       btn.textContent = '正在打包…'; await tick();
       var name = ('HSK1-' + (deck.title || cart.slice(0, 4).join('') + (cart.length > 4 ? '等' + cart.length + '词' : ''))).replace(/[\\/:*?"<>|\s]+/g, '-');
       await pptx.writeFile({ fileName: name + '.pptx' });
-      toast('PPTX 已下载：' + ((pptx.slides && pptx.slides.length) || slides.length) + ' 页（游戏页后面各有一页答案）。' + (missingImg ? ' 有 ' + missingImg + ' 张图片没能放进去（请用网站版打开再导出）。' : ''));
+      toast('PPTX 已下载：' + ((pptx.slides && pptx.slides.length) || slides.length) + ' 页（游戏页后面各有一页答案）。' + (hasAudio ? '含 ' + hasAudio + ' 段朗读音频，放映时点击 🔊 播放。' : '') + (missingImg ? ' 有 ' + missingImg + ' 张图片没能放进去（请用网站版打开再导出）。' : ''));
     } catch (err) { console.error(err); toast('导出失败：' + (err && err.message || err)); }
     finally { btn.disabled = false; btn.textContent = label; }
   }

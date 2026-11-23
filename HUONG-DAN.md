@@ -56,3 +56,14 @@ Phát âm dùng giọng đọc tiếng Trung của trình duyệt (Chrome / Edge
     - Đã kiểm tra (2026‑11): các API trên đều cho phép trình duyệt gọi trực tiếp (CORS); 智谱 GLM thì không nên không đưa vào danh sách.
   - Mỗi dạng bài một yêu cầu chạy song song, hiện dần từng câu (JSON Lines). System prompt chứa cả bảng 300 từ và giống hệt nhau giữa các lần gọi, nên DeepSeek/Qwen tự cache.
   - Chữ ngoài HSK1 được đánh dấu “超纲字”.
+
+## Âm thanh (audio/, data/audio.js)
+- Có 1.532 file MP3 (300 từ + câu ví dụ + câu trong 练习), tổng khoảng 21 MB, giọng `zh-CN-XiaoxiaoNeural`.
+  - Tạo bằng `tools/gen-audio.mjs`, dùng dịch vụ đọc online của Microsoft Edge qua gói `msedge-tts@2.1.1`.
+  - Đây là cách dùng không chính thức, Microsoft có thể chặn bất cứ lúc nào; các file đã tạo thì không bị ảnh hưởng.
+- `data/audio.js` ánh xạ văn bản (đã bỏ khoảng trắng) sang mã file. Tên file là mã băm FNV‑1a của văn bản.
+- Web: `speak()` trong app.js phát MP3 nếu có (nút 慢速 phát 0,7×), không có file thì mới dùng giọng của trình duyệt.
+- PPTX: nút 🔊 nhúng MP3 bằng `addMedia`; khi trình chiếu, bấm vào biểu tượng để phát.
+  - `vendor/pptxgen.bundle.js` đã sửa 1 chỗ để âm thanh dùng thẻ `<a:audioFile>` thay cho `<a:videoFile>`.
+  - Khi sửa thư viện này phải đọc/ghi ở dạng byte (latin1), không đọc/ghi như văn bản UTF‑8, nếu không phần nén ZIP bên trong sẽ hỏng và lệnh xuất bị treo.
+- Thêm hoặc sửa câu ví dụ thì chạy lại script: chỉ những câu chưa có file mới được tạo, rồi `data/audio.js` được ghi lại.
