@@ -192,3 +192,10 @@ body.st-open { overflow: hidden; }
 .ai-dlg .adv { margin: 2px 0 6px; font-size: 13px; }
 .ai-dlg .adv summary { cursor: pointer; color: var(--ink-2); margin-bottom: 8px; }
 .ai-dlg .fld input[type=text] { height: 36px; }
+
+/* v3：复习游戏的答案（缩略图半透明；放映时点击出现） */
+.sl .hid { opacity: .4; }
+.sl.live .hid { opacity: 0; transition: opacity .35s; }
+.sl.live.rev .hid { opacity: 1; }
+.sl .onlyq { transition: opacity .35s; }
+.sl.live.rev .onlyq { opacity: 0; }

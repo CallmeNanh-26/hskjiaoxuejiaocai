@@ -36,7 +36,8 @@ Phát âm dùng giọng đọc tiếng Trung của trình duyệt (Chrome / Edge
 
 ## Giỏ từ vựng · Slide · Bài tập (studio.js / studio.css)
 - **Giỏ từ**: nút “加入词汇篮” trên mỗi trang từ, hoặc nút 词汇篮 trên thanh đầu trang (thêm theo chữ hoặc số thứ tự, ví dụ `1-20`). Lưu trong localStorage `h1ref-cart`.
-- **Slide** (dựng ngay từ dữ liệu, không cần AI): bìa → mỗi từ 3 trang (thẻ từ, 笔顺, 搭配·例句) → trang ôn tập; tuỳ chọn thêm “情境对话” do AI viết.
+- **Slide** (dựng ngay từ dữ liệu, không cần AI): bìa → 课堂导入 (lấy `bop.b` + hoạt động đầu tiên của tối đa 4 từ) → mỗi từ 2 trang (thẻ từ có 笔顺 ngay trên thẻ, chú thích ảnh có pinyin sinh tự động từ bảng HSK1; 搭配·例句) → tuỳ chọn “情境对话” do AI viết → trò chơi ôn tập: 看图说词, 选词填空, 翻译挑战, 读一读.
+  - Trò chơi có đáp án ẩn (`hide: true`): trình chiếu web bấm lần đầu hiện đáp án, lần sau sang trang; PPTX tách thành trang câu hỏi + trang đáp án. Không hiển thị số nét hay số thứ tự HSK.
   - 5 mẫu, mỗi mẫu một bố cục riêng (`LAY.ink / shop / panel`; farm và diner dùng chung `LAY_OLD`):
     - 朴物·新中式: giấy màu be, lá bạch quả vẽ mực, con dấu, chữ dọc;
     - 复古小铺: giấy kẻ ô, dải đen, vé đỏ, khung nét đứt;
