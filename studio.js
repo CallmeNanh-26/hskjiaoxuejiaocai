@@ -1149,6 +1149,26 @@
       im.src = src;
     }));
   }
+  /* PptxGenJS 生成的音频对象缺少 PowerPoint 需要的部分：同一页里形状 ID 重复，也没有 <p:timing> 里的 <p:audio> 节点，
+     PowerPoint / WPS 打开时就把音频丢掉。这里在打包后改写每一页的 XML：重新编号 ID，再按 PowerPoint 自己的格式补上 timing。 */
+  async function fixPptxAudio(buf) {
+    var zip = await window.JSZip.loadAsync(buf);
+    var names = Object.keys(zip.files).filter(function (n) { return /^ppt\/slides\/slide\d+\.xml$/.test(n); });
+    for (var i = 0; i < names.length; i++) {
+      var xml = await zip.file(names[i]).async('string');
+      if (xml.indexOf('<a:audioFile') < 0) continue;
+      var n = 0, media = [];
+      xml = xml.replace(/<p:cNvPr id="\d+"( name="([^"]*)")?/g, function (m, attr, nm) { n++; if (nm && /^Media /.test(nm)) media.push(n); return '<p:cNvPr id="' + n + '"' + (attr || ''); });
+      if (media.length && xml.indexOf('<p:timing') < 0) {
+        var t = '<p:timing><p:tnLst><p:par><p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot"><p:childTnLst>' + media.map(function (id, k) {
+          return '<p:audio><p:cMediaNode><p:cTn id="' + (k + 2) + '" fill="hold" display="1"><p:stCondLst><p:cond delay="indefinite"/></p:stCondLst><p:endCondLst><p:cond evt="onStopAudio"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:endCondLst></p:cTn><p:tgtEl><p:spTgt spid="' + id + '"/></p:tgtEl></p:cMediaNode></p:audio>';
+        }).join('') + '</p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>';
+        xml = xml.indexOf('</p:clrMapOvr>') >= 0 ? xml.replace('</p:clrMapOvr>', '</p:clrMapOvr>' + t) : xml.replace('</p:sld>', t + '</p:sld>');
+      }
+      zip.file(names[i], xml);
+    }
+    return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+  }
   /* 朗读按钮：PPT 里嵌入预先生成的 MP3（放映时点击图标播放） */
   var audioCache = {}, iconCache = {};
   function audioData(text) {
@@ -1181,7 +1201,7 @@
       var pptx = new PptxGenJS();
       pptx.layout = 'LAYOUT_16x9'; pptx.title = deck.title || 'HSK1 生词'; pptx.author = 'HSK1 教学参考';
       pptx.defineSlideMaster({ title: 'BG', background: { data: background(th) } });
-      var missingImg = 0, hasAudio = 0;
+      var missingImg = 0, hasAudio = 0, noAudio = 0;
       for (var i = 0; i < slides.length; i++) {
         btn.textContent = '正在生成 ' + (i + 1) + ' / ' + slides.length + '…'; await tick();
         var s = slides[i], hasAns = s.els.some(function (x) { return x.hide; });
@@ -1213,7 +1233,7 @@
           } else if (e.t === 'say') {
             var mp3 = await audioData(e.text), icon = sayIcon(e.fill || th.accent);
             if (mp3) { sl.addMedia(Object.assign({}, box, { type: 'audio', data: mp3, extn: 'mp3', cover: icon })); hasAudio++; }
-            else sl.addImage(Object.assign({}, box, { data: icon }));
+            else { if ((window.H1_AUDIO || {})[String(e.text).replace(/\s+/g, '')]) noAudio++; sl.addImage(Object.assign({}, box, { data: icon })); }
           }
         }
         if (s.notes) sl.addNotes((hasAns ? (pass ? '【答案】\n' : '【题目】下一页是答案。\n') : '') + s.notes);
@@ -1221,8 +1241,11 @@
       }
       btn.textContent = '正在打包…'; await tick();
       var name = ('HSK1-' + (deck.title || cart.slice(0, 4).join('') + (cart.length > 4 ? '等' + cart.length + '词' : ''))).replace(/[\\/:*?"<>|\s]+/g, '-');
-      await pptx.writeFile({ fileName: name + '.pptx' });
-      toast('PPTX 已下载：' + ((pptx.slides && pptx.slides.length) || slides.length) + ' 页（游戏页后面各有一页答案）。' + (hasAudio ? '含 ' + hasAudio + ' 段朗读音频，放映时点击 🔊 播放。' : '') + (missingImg ? ' 有 ' + missingImg + ' 张图片没能放进去（请用网站版打开再导出）。' : ''));
+      var blob = await fixPptxAudio(await pptx.write({ outputType: 'arraybuffer' }));
+      window.H1studio.lastPptx = blob;
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name + '.pptx';
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 60000);
+      toast('PPTX 已下载：' + ((pptx.slides && pptx.slides.length) || slides.length) + ' 页（游戏页后面各有一页答案）。' + (hasAudio ? '含 ' + hasAudio + ' 段朗读音频，放映时点击 🔊 播放。' : '') + (noAudio ? ' 有 ' + noAudio + ' 段音频没能放进去：请用网站地址打开（不要直接双击 index.html），刷新页面后再导出。' : '') + (missingImg ? ' 有 ' + missingImg + ' 张图片没能放进去（请用网站版打开再导出）。' : ''));
     } catch (err) { console.error(err); toast('导出失败：' + (err && err.message || err)); }
     finally { btn.disabled = false; btn.textContent = label; }
   }

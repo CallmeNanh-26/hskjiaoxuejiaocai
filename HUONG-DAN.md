@@ -65,5 +65,7 @@ Phát âm dùng giọng đọc tiếng Trung của trình duyệt (Chrome / Edge
 - Web: `speak()` trong app.js phát MP3 nếu có (nút 慢速 phát 0,7×), không có file thì mới dùng giọng của trình duyệt.
 - PPTX: nút 🔊 nhúng MP3 bằng `addMedia`; khi trình chiếu, bấm vào biểu tượng để phát.
   - `vendor/pptxgen.bundle.js` đã sửa 1 chỗ để âm thanh dùng thẻ `<a:audioFile>` thay cho `<a:videoFile>`.
+  - Sau khi PptxGenJS tạo file, `fixPptxAudio()` (dùng JSZip có sẵn trong bundle) sửa lại từng slide: đánh lại ID đối tượng cho khỏi trùng, và thêm `<p:timing>` với `<p:audio><p:cMediaNode>` cho từng âm thanh (giống file PowerPoint tự tạo). Đã kiểm tra: PowerPoint phát được, WPS nhận đủ đối tượng âm thanh.
+  - Nếu mở trang bằng `file://` thì không đọc được MP3; khi đó trang chỉ chèn hình loa và thông báo cho biết có bao nhiêu đoạn âm thanh chưa nhúng được.
   - Khi sửa thư viện này phải đọc/ghi ở dạng byte (latin1), không đọc/ghi như văn bản UTF‑8, nếu không phần nén ZIP bên trong sẽ hỏng và lệnh xuất bị treo.
 - Thêm hoặc sửa câu ví dụ thì chạy lại script: chỉ những câu chưa có file mới được tạo, rồi `data/audio.js` được ghi lại.
