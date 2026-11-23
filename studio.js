@@ -78,7 +78,7 @@
      2. 工作台（词汇篮 / 课件 / 练习）
      ===================================================================== */
   var tab = 'cart';
-  var deck = Object.assign({ tpl: 'farm', accent: '', title: '', parts: { cover: true, word: true, stroke: true, use: true, review: true, dialog: false } }, store.get('h1ref-deck', {}));
+  var deck = Object.assign({ tpl: 'ink', accent: '', title: '', parts: { cover: true, word: true, stroke: true, use: true, review: true, dialog: false } }, store.get('h1ref-deck', {}));
   deck.parts = Object.assign({ cover: true, word: true, stroke: true, use: true, review: true, dialog: false }, deck.parts);
   var EXT = [
     ['blank', '选词填空', 'Fill in the blank', 5],
@@ -99,7 +99,7 @@
     '<div class="st-panel">' +
     '<header class="st-head"><div class="st-tabs">' +
     '<button data-tab="cart">词汇篮 <b class="cnt">0</b></button><button data-tab="deck">课件 · 放映 / PPT</button><button data-tab="ex">练习 · 出题</button></div>' +
-    '<span class="sp"></span><button class="st-ai" data-act="ai-open" title="填写你自己的 Anthropic API key">AI 设置<i class="dot"></i></button>' +
+    '<span class="sp"></span><button class="st-ai" data-act="ai-open" title="选择 AI 服务，填写你自己的 API key">AI 设置<i class="dot"></i></button>' +
     '<button class="icon-btn st-x" data-act="close" aria-label="关闭">✕</button></header>' +
     '<div class="st-body">' +
     /* 词汇篮 */
@@ -123,21 +123,21 @@
     '<h3>题型 · 数量 <small>Types</small></h3><div class="extypes" id="exTypes"></div>' +
     '<h3>给 AI 的要求 <small>可不填</small></h3><textarea id="exNote" rows="3" placeholder="例：情境是在饭店点菜；句子再短一点；多练习“几”和“多少”。"></textarea>' +
     '<div class="go"><button class="btn big" data-act="ex-local">⚡ 快速生成</button><button class="btn big alt" data-act="ex-ai">✨ AI 生成</button></div>' +
-    '<p class="hint"><b>快速生成</b>：用本站的例句马上出题，不需要 API key。<br><b>AI 生成</b>：按你的要求写新题，只用 HSK1 词；几种题型同时生成，边写边显示。用到 HSK1 以外的字会标出来。</p>' +
+    '<p class="hint"><b>快速生成</b>：用本站的例句马上出题，不需要 API key。<br><b>AI 生成</b>：用「AI 设置」里选的服务（DeepSeek、通义千问等）按你的要求写新题，只用 HSK1 词；几种题型同时生成，边写边显示。用到 HSK1 以外的字会标出来。</p>' +
     '</aside><div class="ex-main"><div class="ex-bar"><label class="tog"><input type="checkbox" id="exAns"> 显示答案（教师版）</label><span class="sp"></span><span class="stat" id="exStat"></span>' +
     '<button class="btn ghost" data-act="ex-copy">复制文字</button><button class="btn ghost" data-act="ex-print">打印 / 存 PDF</button></div>' +
     '<div class="ex-out" id="exOut"><p class="empty">在左边选好题型和数量，点“快速生成”或“AI 生成”。</p></div></div></div></section>' +
     '</div></div>' +
     /* AI 设置 */
     '<dialog class="ai-dlg" id="aiDlg"><form method="dialog">' +
-    '<h3>AI 设置 <small>使用你自己的 Anthropic API key</small></h3>' +
-    '<label class="fld">API key<input id="aiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-..."></label>' +
+    '<h3>AI 设置 <small>用你自己的 API key。支持 DeepSeek、通义千问、Kimi、豆包、ChatGPT 等。</small></h3>' +
+    '<label class="fld">AI 服务<select id="aiProv"></select></label>' +
+    '<label class="fld">API key<input id="aiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-..."></label>' +
     '<label class="row"><input type="checkbox" id="aiRemember"> 在这台电脑上记住（不勾选则关掉网页就清除）</label>' +
-    '<label class="fld">模型<select id="aiModel">' +
-    '<option value="claude-opus-5-5">Claude Opus 5.5 · 质量最好</option>' +
-    '<option value="claude-sonnet-5-5">Claude Sonnet 5.5 · 更快</option>' +
-    '<option value="claude-haiku-5-5">Claude Haiku 5.5 · 最快、最便宜</option></select></label>' +
-    '<p class="hint">key 只保存在你的浏览器里，只发送到 api.anthropic.com（Anthropic 官方接口）。费用按你的账户计算。还没有 key：在 console.anthropic.com 创建。</p>' +
+    '<details class="adv"><summary>高级：模型名称、接口地址</summary>' +
+    '<label class="fld">模型<input id="aiModelIn" type="text" autocomplete="off" spellcheck="false"></label>' +
+    '<label class="fld" id="aiUrlRow">接口地址（OpenAI 兼容 /chat/completions）<input id="aiUrlIn" type="text" autocomplete="off" spellcheck="false"></label></details>' +
+    '<p class="hint" id="aiHint"></p>' +
     '<div class="acts"><button type="button" class="btn ghost" data-act="ai-test">测试连接</button><span class="stat" id="aiStat"></span><span class="sp"></span><button class="btn" value="ok">完成</button></div>' +
     '</form></dialog>';
   document.body.appendChild(studio);
@@ -204,59 +204,99 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !studio.hidden && !showEl && !$('aiDlg').open) closeStudio(); });
 
   /* =====================================================================
-     3. 课件：模板、背景、幻灯片模型（英寸，10 × 5.625）
+     3. 课件：风格、配色（全部由主色推导）、装饰、幻灯片模型（英寸，10 × 5.625）
      ===================================================================== */
-  var THEMES = {
-    farm: { name: '秋日农场', sub: '奶油底 · 南瓜橙 · 木框', accent: '#e8792b', bg: '#fbecc9', ink: '#5b3417', ink2: '#8a5d38', card: '#fff8e8', frame: '#b9773d', tagInk: '#fff6df' },
-    diner: { name: '小餐馆', sub: '红白格桌布 · 挂单卡', accent: '#d8402f', bg: '#fff4e2', ink: '#4a2a22', ink2: '#8b5e50', card: '#fffbf3', frame: '#c98f55', tagInk: '#ffffff' },
-    fresh: { name: '清新', sub: '米白 · 鼠尾草绿', accent: '#d4522a', bg: '#f3ecdd', ink: '#1f3a34', ink2: '#55675f', card: '#fffdf8', frame: '#b7ccba', tagInk: '#ffffff' }
+  var STYLES = {
+    ink: { name: '朴物 · 新中式', sub: '米色纸 · 墨色银杏 · 印章', accent: '#a8936b' },
+    shop: { name: '复古小铺', sub: '格子纸 · 红票据 · 黑条幅', accent: '#c8382e' },
+    panel: { name: '暖调面板', sub: '奶油卡片 · 侧边词表 · 进度环', accent: '#c0643f' },
+    farm: { name: '秋日农场', sub: '木框 · 落叶 · 南瓜', accent: '#e8792b' },
+    diner: { name: '小餐馆', sub: '红白格桌布 · 挂单卡', accent: '#d8402f' }
   };
-  var SWATCHES = ['#e8792b', '#d8402f', '#d4522a', '#c9488a', '#8a5cc2', '#3a6ea5', '#2f8a7a', '#5f8f3a', '#a9853f'];
+  if (!STYLES[deck.tpl]) deck.tpl = 'ink';
+  var SWATCHES = ['#a8936b', '#c0643f', '#c8382e', '#e08a3c', '#d08aa0', '#9b7bb0', '#5f87a8', '#6f9a7e', '#3f5d52'];
+
+  /* --- 颜色工具 --- */
   function hexRgb(h) { h = h.replace('#', ''); if (h.length === 3) h = h.replace(/./g, '$&$&'); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
-  function mix(a, b, t) { var x = hexRgb(a), y = hexRgb(b); return '#' + x.map(function (v, i) { return ('0' + Math.round(v + (y[i] - v) * t).toString(16)).slice(-2); }).join(''); }
+  function rgbHex(a) { return '#' + a.map(function (v) { return ('0' + Math.round(Math.max(0, Math.min(255, v))).toString(16)).slice(-2); }).join(''); }
+  function mix(a, b, t) { var x = hexRgb(a), y = hexRgb(b); return rgbHex(x.map(function (v, i) { return v + (y[i] - v) * t; })); }
+  function toHsl(hex) {
+    var c = hexRgb(hex).map(function (v) { return v / 255; }), mx = Math.max.apply(null, c), mn = Math.min.apply(null, c), l = (mx + mn) / 2, h = 0, s = 0;
+    if (mx !== mn) { var d = mx - mn; s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn); h = mx === c[0] ? (c[1] - c[2]) / d + (c[1] < c[2] ? 6 : 0) : mx === c[1] ? (c[2] - c[0]) / d + 2 : (c[0] - c[1]) / d + 4; h *= 60; }
+    return [h, s, l];
+  }
+  function fromHsl(h, s, l) { h = ((h % 360) + 360) % 360; var f = function (n) { var k = (n + h / 30) % 12, a = s * Math.min(l, 1 - l); return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return rgbHex([f(0), f(8), f(4)].map(function (v) { return v * 255; })); }
+  function lum(hex) { var c = hexRgb(hex).map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
+  function onColor(fill) { return lum(fill) > 0.4 ? '#2a2420' : '#ffffff'; }
+
+  /* 主色 → 整套配色：背景是接近主色的浅色（pastel），卡片、图片框、文字都跟着变 */
   function themeNow(key, accent) {
-    var t = Object.assign({ key: key || deck.tpl }, THEMES[key || deck.tpl] || THEMES.farm);
-    t.accent = accent || (key ? t.accent : deck.accent) || t.accent;
-    t.soft = mix(t.accent, '#ffffff', 0.82); t.grid = mix(t.accent, '#ffffff', 0.6); t.outline = mix(t.ink, '#ffffff', 0.86);
-    t.tag = t.key === 'farm' ? t.frame : t.key === 'diner' ? t.accent : t.ink;
+    var k = key || deck.tpl, st = STYLES[k] || STYLES.ink;
+    var a = accent || (key ? '' : deck.accent) || st.accent, hsl = toHsl(a);
+    var t = { key: k, name: st.name, accent: a };
+    t.at = lum(a) > 0.22 ? mix(a, '#1d1a17', Math.min(0.55, (lum(a) - 0.12) * 1.4)) : a;
+    t.bg = mix(a, '#ffffff', 0.84); t.paper = mix(a, '#ffffff', 0.92); t.card = mix(a, '#ffffff', 0.965);
+    t.tile = mix(a, '#ffffff', 0.58); t.tile2 = mix(a, '#ffffff', 0.74);
+    t.frame = mix(a, '#2b2520', 0.32);
+    t.ink = mix(a, '#1d1a17', 0.86); t.ink2 = mix(t.ink, '#ffffff', 0.4);
+    t.soft = mix(a, '#ffffff', 0.8); t.grid = mix(a, '#ffffff', 0.55); t.outline = mix(t.ink, '#ffffff', 0.86);
+    t.a2 = fromHsl(hsl[0] + 150, Math.min(0.32, hsl[1] * 0.55 + 0.1), 0.44); t.a2soft = mix(t.a2, '#ffffff', 0.8); t.a2dark = mix(t.a2, '#1d1a17', 0.45);
+    t.seal = '#b23a2a';
+    t.tag = { ink: t.ink, shop: t.ink, panel: t.accent, farm: t.frame, diner: t.accent }[k];
+    t.tagInk = onColor(t.tag);
+    t.onA = onColor(a);
     return t;
   }
 
-  /* --- 背景（canvas 绘制；网页和 PPT 用同一张） --- */
+  /* --- 背景（canvas；网页和 PPT 共用） --- */
   var bgCache = {};
+  function canvas(w, h) { var c = document.createElement('canvas'); c.width = Math.round(w); c.height = Math.round(h); return c; }
   function background(th) {
     var k = th.key + th.accent; if (bgCache[k]) return bgCache[k];
-    var S = 160, W = 10 * S, H = 5.625 * S, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-    var g = cv.getContext('2d');
+    var S = 160, W = 10 * S, H = 5.625 * S, cv = canvas(W, H), g = cv.getContext('2d'), i, x, y;
     g.fillStyle = th.bg; g.fillRect(0, 0, W, H);
-    if (th.key === 'fresh') {
-      blob(g, W * 1.02, -H * 0.1, W * 0.45, '#d3dfe4'); blob(g, -W * 0.05, H * 1.1, W * 0.4, '#dde8db');
-      g.fillStyle = mix(th.accent, '#ffffff', 0.55);
-      for (var i = 0; i < 7; i++) for (var j = 0; j < 3; j++) { g.beginPath(); g.arc(W - S * (0.25 + i * 0.16), S * (0.22 + j * 0.16), S * 0.025, 0, 7); g.fill(); }
+    var rnd = seeded(7);
+    if (th.key === 'ink') {
+      blob(g, W * 0.75, H * 0.2, W * 0.5, th.paper);
+      for (i = 0; i < 26000; i++) { g.fillStyle = rnd() < 0.5 ? 'rgba(40,30,20,.05)' : 'rgba(255,255,255,.35)'; g.fillRect(rnd() * W, rnd() * H, 1 + rnd() * 1.6, 1 + rnd() * 1.6); }
+      g.strokeStyle = 'rgba(60,45,30,.06)'; g.lineWidth = 1;
+      for (i = 0; i < 160; i++) { x = rnd() * W; y = rnd() * H; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + rnd() * 40 - 20, y + rnd() * 40 - 20, x + rnd() * 70 - 35, y + rnd() * 70 - 35); g.stroke(); }
+    } else if (th.key === 'shop') {
+      g.fillStyle = th.paper; g.fillRect(0, 0, W, H);
+      g.strokeStyle = th.grid; g.globalAlpha = 0.45; g.lineWidth = 1;
+      for (x = 0; x < W; x += S * 0.2) { g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, H); g.stroke(); }
+      for (y = 0; y < H; y += S * 0.2) { g.beginPath(); g.moveTo(0, y + 0.5); g.lineTo(W, y + 0.5); g.stroke(); }
+      g.globalAlpha = 1;
+      var cs = S * 0.1, y0 = H - S * 0.2;
+      for (x = 0; x < W; x += cs) for (y = y0; y < H; y += cs) { g.fillStyle = (Math.round(x / cs) + Math.round((y - y0) / cs)) % 2 ? th.a2 : th.a2soft; g.fillRect(x, y, cs, cs); }
+    } else if (th.key === 'panel') {
+      var step = S * 0.42;
+      for (y = 0; y < H + step; y += step) for (x = ((y / step) % 2) * step / 2; x < W + step; x += step) {
+        diamond(g, x, y, step * 0.3, (Math.round(x / step + y / step) % 2) ? th.accent : th.a2, 0.16);
+        g.fillStyle = 'rgba(80,50,30,.08)'; g.beginPath(); g.arc(x + step / 2, y, S * 0.025, 0, 7); g.fill();
+      }
+      g.strokeStyle = th.frame; g.globalAlpha = 0.25; g.lineWidth = S * 0.02; g.strokeRect(S * 0.12, S * 0.12, W - S * 0.24, H - S * 0.24); g.globalAlpha = 1;
+      for (x = S * 0.3; x < W - S * 0.2; x += S * 0.3) { diamond(g, x, S * 0.12, S * 0.06, th.accent, 0.45); diamond(g, x, H - S * 0.12, S * 0.06, th.a2, 0.45); }
     } else if (th.key === 'farm') {
-      blob(g, W * 0.1, -H * 0.15, W * 0.4, '#fff7e2');
-      wave(g, H * 0.9, S * 0.08, mix(th.accent, '#ffffff', 0.7), W, H, 0);
-      wave(g, H * 0.94, S * 0.07, '#c9d48f', W, H, 1.7);
-      leaf(g, S * 9.55, S * 0.42, S * 0.26, 0.6, th.accent); leaf(g, S * 9.2, S * 0.25, S * 0.18, -0.5, '#d9a441'); leaf(g, S * 9.75, S * 0.9, S * 0.16, 1.4, '#b8552c');
-      leaf(g, S * 0.3, S * 5.15, S * 0.2, -0.9, '#d9a441'); leaf(g, S * 0.62, S * 5.35, S * 0.15, 0.4, th.accent);
-      pumpkin(g, S * 9.35, S * 5.25, S * 0.26, th.accent); pumpkin(g, S * 8.95, S * 5.36, S * 0.17, '#e5a53a');
+      blob(g, W * 0.1, -H * 0.15, W * 0.4, th.card);
+      wave(g, H * 0.9, S * 0.08, th.soft, W, H, 0);
+      wave(g, H * 0.94, S * 0.07, mix(th.a2, '#ffffff', 0.55), W, H, 1.7);
+      leaf(g, S * 9.55, S * 0.42, S * 0.26, 0.6, th.accent); leaf(g, S * 9.2, S * 0.25, S * 0.18, -0.5, mix(th.accent, '#e0b040', 0.5)); leaf(g, S * 9.75, S * 0.9, S * 0.16, 1.4, th.frame);
+      leaf(g, S * 0.3, S * 5.15, S * 0.2, -0.9, mix(th.accent, '#e0b040', 0.5)); leaf(g, S * 0.62, S * 5.35, S * 0.15, 0.4, th.accent);
+      pumpkin(g, S * 9.35, S * 5.25, S * 0.26, th.accent, th.a2); pumpkin(g, S * 8.95, S * 5.36, S * 0.17, mix(th.accent, '#e0b040', 0.5), th.a2);
       g.lineWidth = S * 0.09; g.strokeStyle = th.frame; rrect(g, S * 0.07, S * 0.07, W - S * 0.14, H - S * 0.14, S * 0.22); g.stroke();
       g.lineWidth = S * 0.018; g.strokeStyle = mix(th.frame, '#ffffff', 0.45); rrect(g, S * 0.14, S * 0.14, W - S * 0.28, H - S * 0.28, S * 0.17); g.stroke();
     } else {
-      g.fillStyle = mix(th.accent, '#ffffff', 0.93); for (var x = 0; x < W; x += S * 0.5) g.fillRect(x, 0, S * 0.25, H);
-      var cs = S * 0.28, y0 = S * 5.0;
-      g.fillStyle = '#fffaf0'; g.fillRect(0, y0, W, H - y0);
+      g.fillStyle = th.paper; for (x = 0; x < W; x += S * 0.5) g.fillRect(x, 0, S * 0.25, H);
+      var c2 = S * 0.28, y1 = S * 5.0;
+      g.fillStyle = th.card; g.fillRect(0, y1, W, H - y1);
       g.globalAlpha = 0.5; g.fillStyle = th.accent;
-      for (var cx = 0; cx < W; cx += cs * 2) g.fillRect(cx, y0, cs, H - y0);
-      for (var cy = y0; cy < H; cy += cs * 2) g.fillRect(0, cy, W, cs);
-      g.globalAlpha = 1;
-      g.fillStyle = 'rgba(0,0,0,.08)'; g.fillRect(0, y0, W, S * 0.03);
+      for (x = 0; x < W; x += c2 * 2) g.fillRect(x, y1, c2, H - y1);
+      for (y = y1; y < H; y += c2 * 2) g.fillRect(0, y, W, c2);
+      g.globalAlpha = 1; g.fillStyle = 'rgba(0,0,0,.08)'; g.fillRect(0, y1, W, S * 0.03);
       var sw = S * 0.5, ah = S * 0.34;
-      for (var k = 0; k * sw < W; k++) {
-        g.fillStyle = k % 2 ? '#fffaf0' : th.accent; g.fillRect(k * sw, 0, sw, ah);
-        g.beginPath(); g.arc(k * sw + sw / 2, ah, sw / 2, 0, Math.PI); g.fill();
-      }
-      g.strokeStyle = '#8a5a3c'; g.lineWidth = S * 0.02; g.beginPath(); g.moveTo(0, S * 1.06); g.quadraticCurveTo(W / 2, S * 1.26, W, S * 1.06); g.stroke();
+      for (var n = 0; n * sw < W; n++) { g.fillStyle = n % 2 ? th.card : th.accent; g.fillRect(n * sw, 0, sw, ah); g.beginPath(); g.arc(n * sw + sw / 2, ah, sw / 2, 0, Math.PI); g.fill(); }
+      g.strokeStyle = th.frame; g.lineWidth = S * 0.02; g.beginPath(); g.moveTo(0, S * 1.06); g.quadraticCurveTo(W / 2, S * 1.26, W, S * 1.06); g.stroke();
     }
     return (bgCache[k] = cv.toDataURL('image/jpeg', 0.9));
   }
@@ -270,27 +310,140 @@
     }
     return c;
   }
+  function seeded(s) { return function () { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; }
   function stringY(x) { var u = (x - 5) / 5; return 1.06 + 0.1 * (1 - u * u); }
   function blob(g, x, y, r, c) { var gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, c); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, g.canvas.width, g.canvas.height); }
   function rrect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
   function wave(g, y, amp, c, W, H, ph) { g.fillStyle = c; g.beginPath(); g.moveTo(0, H); for (var x = 0; x <= W; x += 10) g.lineTo(x, y + Math.sin(x / W * 6.3 + ph) * amp); g.lineTo(W, H); g.closePath(); g.fill(); }
+  function diamond(g, x, y, r, c, a) { g.globalAlpha = a; g.fillStyle = c; g.beginPath(); g.moveTo(x, y - r); g.lineTo(x + r, y); g.lineTo(x, y + r); g.lineTo(x - r, y); g.closePath(); g.fill(); g.globalAlpha = 1; }
   function leaf(g, x, y, s, rot, c) {
     g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = c; g.beginPath(); g.moveTo(0, -s);
     g.bezierCurveTo(s * 0.75, -s * 0.6, s * 0.7, s * 0.45, 0, s); g.bezierCurveTo(-s * 0.7, s * 0.45, -s * 0.75, -s * 0.6, 0, -s); g.fill();
     g.strokeStyle = 'rgba(80,40,10,.28)'; g.lineWidth = s * 0.07; g.beginPath(); g.moveTo(0, -s * 0.75); g.lineTo(0, s * 1.3); g.stroke(); g.restore();
   }
-  function pumpkin(g, x, y, r, c) {
+  function pumpkin(g, x, y, r, c, lc) {
     g.fillStyle = mix(c, '#000000', 0.12); [-0.5, 0.5].forEach(function (k) { g.beginPath(); g.ellipse(x + k * r * 0.62, y, r * 0.6, r * 0.72, 0, 0, 7); g.fill(); });
     g.fillStyle = c; g.beginPath(); g.ellipse(x, y, r * 0.58, r * 0.76, 0, 0, 7); g.fill();
     g.fillStyle = '#6b4a2a'; g.fillRect(x - r * 0.07, y - r * 0.98, r * 0.14, r * 0.3);
-    leaf(g, x + r * 0.28, y - r * 0.86, r * 0.2, 1.2, '#7d9a3c');
+    leaf(g, x + r * 0.28, y - r * 0.86, r * 0.2, 1.2, lc);
+  }
+
+  /* --- 装饰小图（透明 PNG：银杏、印章、进度环、箭头、星芒） --- */
+  var decoCache = {};
+  function dataToBlob(d) { var p = d.split(','), bin = atob(p[1]), u = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Blob([u], { type: p[0].split(':')[1].split(';')[0] }); }
+  function D(x, y, w, h, key, paint) {
+    if (!decoCache[key]) {
+      var cv = canvas(w * 150, h * 150); paint(cv.getContext('2d'), cv.width, cv.height);
+      var data = cv.toDataURL('image/png'); decoCache[key] = { data: data, url: URL.createObjectURL(dataToBlob(data)) };
+    }
+    return { t: 'img', x: x, y: y, w: w, h: h, data: decoCache[key].data, url: decoCache[key].url, deco: true };
+  }
+  function ginkgoLeaf(g, x, y, r, rot, col) {
+    g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = col; g.strokeStyle = col;
+    g.lineWidth = r * 0.06; g.lineCap = 'round'; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(r * 0.12, r * 0.5, r * 0.02, r * 0.95); g.stroke();
+    var a0 = -Math.PI / 2 - 1.0, a1 = -Math.PI / 2 + 1.0;
+    g.beginPath(); g.moveTo(0, 0);
+    for (var k = 0; k <= 24; k++) {
+      var a = a0 + (a1 - a0) * k / 24, rr = r * (1 + 0.045 * Math.sin(k * 1.9));
+      if (k === 12) g.lineTo(Math.cos(a) * r * 0.68, Math.sin(a) * r * 0.68);
+      g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    g.closePath(); g.fill();
+    g.globalCompositeOperation = 'destination-out'; g.lineWidth = Math.max(1, r * 0.02);
+    for (var v = 1; v < 11; v++) { var b = a0 + (a1 - a0) * v / 11; g.beginPath(); g.moveTo(Math.cos(b) * r * 0.18, Math.sin(b) * r * 0.18); g.lineTo(Math.cos(b) * r * 0.9, Math.sin(b) * r * 0.9); g.stroke(); }
+    g.globalCompositeOperation = 'source-over'; g.restore();
+  }
+  function paintGinkgo(col, flip) {
+    return function (g, W, H) {
+      if (flip) { g.translate(W, 0); g.scale(-1, 1); }
+      var R = Math.min(W, H) * 0.3, L = [[0.16, 0.5, 0.95, -0.7], [0.34, 0.3, 1.05, -0.05], [0.52, 0.45, 0.85, 0.65], [0.2, 0.18, 0.7, -1.3], [0.68, 0.24, 0.72, 1.15], [0.43, 0.74, 0.62, 2.7], [0.84, 0.55, 0.55, 1.9], [0.07, 0.82, 0.5, -2.2]];
+      L.forEach(function (l) { ginkgoLeaf(g, l[0] * W, l[1] * H, R * l[2], l[3], col); });
+      var rnd = seeded(11); g.globalCompositeOperation = 'destination-out';
+      for (var i = 0; i < W * H / 60; i++) { g.fillStyle = 'rgba(0,0,0,' + (rnd() * 0.7) + ')'; g.fillRect(rnd() * W, rnd() * H, 1.6, 1.6); }
+      g.globalCompositeOperation = 'source-over';
+    };
+  }
+  function paintSeal(col, txt) {
+    return function (g, W, H) {
+      g.fillStyle = col; rrect(g, W * 0.05, H * 0.05, W * 0.9, H * 0.9, W * 0.1); g.fill();
+      g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      var cs = txt.split('');
+      if (cs.length === 1) { g.font = 'bold ' + (W * 0.6) + 'px KaiTi, STKaiti, serif'; g.fillText(cs[0], W / 2, H * 0.53); }
+      else { g.font = 'bold ' + (W * 0.36) + 'px KaiTi, STKaiti, serif'; g.fillText(cs[0], W / 2, H * 0.3); g.fillText(cs[1], W / 2, H * 0.72); }
+      var rnd = seeded(5); g.globalCompositeOperation = 'destination-out';
+      for (var i = 0; i < W * H / 40; i++) { g.fillStyle = 'rgba(0,0,0,' + (rnd() * 0.5) + ')'; g.fillRect(rnd() * W, rnd() * H, 2, 2); }
+      g.globalCompositeOperation = 'source-over';
+    };
+  }
+  function paintRing(frac, col, track) {
+    return function (g, W) {
+      var r = W * 0.4, c = W / 2; g.lineWidth = W * 0.12; g.lineCap = 'round';
+      g.strokeStyle = track; g.beginPath(); g.arc(c, c, r, 0, 7); g.stroke();
+      g.strokeStyle = col; g.beginPath(); g.arc(c, c, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.02, frac)); g.stroke();
+    };
+  }
+  function paintChevrons(col, left) {
+    return function (g, W, H) {
+      if (left) { g.translate(W, 0); g.scale(-1, 1); }
+      g.fillStyle = col;
+      [[0.05, 0.55], [0.42, 0.75]].forEach(function (p) {
+        var x = p[0] * W, s = p[1];
+        g.beginPath(); g.moveTo(x, H * (0.5 - 0.42 * s)); g.lineTo(x + W * 0.34 * s, H * 0.5); g.lineTo(x, H * (0.5 + 0.42 * s)); g.lineTo(x + W * 0.1 * s, H * 0.5); g.closePath(); g.fill();
+      });
+    };
+  }
+  function paintSpark(col) {
+    return function (g, W, H) {
+      g.fillStyle = col; g.beginPath(); var c = W / 2, m = H / 2;
+      g.moveTo(c, 0); g.quadraticCurveTo(c, m, W, m); g.quadraticCurveTo(c, m, c, H); g.quadraticCurveTo(c, m, 0, m); g.quadraticCurveTo(c, m, c, 0); g.fill();
+    };
   }
 
   /* --- 元素 --- */
   function R(x, y, w, h, o) { return Object.assign({ t: 'rect', x: x, y: y, w: w, h: h }, o); }
   function T(x, y, w, h, runs, o) { return Object.assign({ t: 'text', x: x, y: y, w: w, h: h, runs: typeof runs === 'string' ? [{ text: runs }] : runs }, o); }
   var FONT = { kai: ['var(--kai)', 'KaiTi'], zh: ['var(--sans)', 'Microsoft YaHei'], py: ['var(--sans)', 'Segoe UI'] };
-  function textW(s, pt) { var w = 0; for (var i = 0; i < s.length; i++) w += /[　-鿿＀-￯]/.test(s[i]) ? 1 : 0.56; return w * pt / 72; }
+  function textW(s, pt, ls) { var w = 0; for (var i = 0; i < s.length; i++) w += /[　-鿿＀-￯]/.test(s[i]) ? 1 : 0.58; return w * pt / 72 + (ls || 0) * s.length / 72; }
+  function caps(x, y, w, h, text, th, o) { return T(x, y, w, h, text, Object.assign({ size: 8, bold: true, color: th.ink2, font: 'py', ls: 1.6, valign: 'middle' }, o)); }
+  function pill(els, x, y, text, o) {
+    var size = o.size || 11, h = o.h || 0.34, w = o.w || textW(text, size) + 0.4;
+    if (o.right) x -= w;
+    if (o.drop) els.push(R(x + 0.04, y + 0.045, w, h, { fill: o.drop, r: h / 2 }));
+    els.push(R(x, y, w, h, { fill: o.fill, line: o.line, lw: o.lw || 1, r: o.r != null ? o.r : h / 2 }));
+    els.push(T(x, y, w, h, text, { size: size, color: o.color, bold: o.bold !== false, align: 'center', valign: 'middle', font: o.font || 'zh' }));
+    return o.right ? x : x + w;
+  }
+  function say(x, y, s, text, fill) { return { t: 'say', x: x, y: y, w: s, h: s, text: text, fill: fill }; }
+  function info(w) {
+    var r = LIST[IDX[w]], d = WORDS[w], strokes = 0;
+    w.split('').forEach(function (c) { if (STROKES[c]) strokes += STROKES[c].strokes.length; });
+    var p0 = d && d.pos && d.pos[0];
+    return {
+      w: w, r: r, d: d, py: r[1], no: IDX[w] + 1, strokes: strokes, img: d && d.img,
+      zh: d ? d.zh.slice(0, 2).join('；') : '', en: d ? d.en.slice(0, 2).join('; ') : r[3],
+      pos: p0 ? p0[0] + ' ' + String(p0[1] || '').toUpperCase() : posText(w).split(' · ')[0],
+      ex: d && d.ex ? d.ex : [], use: d && d.use && d.use.length ? d.use : (d && d.rel || []).map(function (x) { return x + '  ' + (LIST[IDX[x]] || ['', ''])[1]; })
+    };
+  }
+  function hzSize(w, base) { return w.length === 1 ? base : w.length === 2 ? base * 0.86 : w.length === 3 ? base * 0.68 : base * 0.54; }
+  function uniqChars(w) { return w.split('').filter(function (c, i, a) { return STROKES[c] && a.indexOf(c) === i; }); }
+  function charLabel(I, c) {
+    var hz = I.d && I.d.hz ? I.d.hz.filter(function (z) { return z.c === c; })[0] : null;
+    return c + ' · ' + STROKES[c].strokes.length + ' 画' + (hz ? ' · 部首 ' + hz.rad + (hz.struct ? ' · ' + hz.struct : '') : '');
+  }
+  function tokensRuns(zh, word, size, th) {
+    return zh.split(' ').map(function (t) { var hit = t === word || (word.length > 1 && t.indexOf(word) >= 0); return { text: t, size: size, color: hit ? th.at : th.ink, bold: hit }; });
+  }
+  function imgBox(els, I, x, y, w, h, th, o) {
+    o = o || {};
+    if (!I.img) { els.push(R(x, y, w, h, { fill: th.tile2, r: 0.1 })); els.push(T(x, y, w, h, I.w, { size: 60, color: th.card, font: 'kai', align: 'center', valign: 'middle' })); return; }
+    if (o.frame !== false) els.push(R(x - 0.05, y - 0.05, w + 0.1, h + 0.1, { fill: o.frameFill || th.card, line: o.frameLine || th.frame, lw: o.lw || 1.5, r: o.r != null ? o.r : 0.1, dash: o.dash }));
+    els.push({ t: 'img', x: x, y: y, w: w, h: h, src: I.img.src });
+  }
+  function fit4x3(x, y, w, h) { var iw = Math.min(w, h * 4 / 3), ih = iw * 3 / 4; return [x + (w - iw) / 2, y + (h - ih) / 2, iw, ih]; }
+  function wordNotes(I) { return I.w + '  ' + I.py + '\n' + (I.zh ? I.zh + '\n' : '') + I.en + (I.d && I.d.bop ? '\n\n导入：' + I.d.bop.b : ''); }
+
+  /* --- 通用卡片 / 标签（复习页、对话页和旧模板使用） --- */
   function card(els, th, x, y, w, h, o) {
     o = o || {};
     if (th.key === 'farm' && !o.plain) {
@@ -300,140 +453,447 @@
       [[x + 0.035, y + 0.035], [x + w - 0.105, y + 0.035], [x + 0.035, y + h - 0.105], [x + w - 0.105, y + h - 0.105]].forEach(function (p) { els.push(R(p[0] + 0.01, p[1] + 0.01, 0.05, 0.05, { fill: nail, ellipse: true })); });
     } else if (th.key === 'diner' && !o.plain) {
       if (o.hang) [x + Math.min(0.45, w / 4), x + w - Math.min(0.45, w / 4)].forEach(function (hx) {
-        var sy = stringY(hx); els.push(R(hx - 0.006, sy, 0.012, y - sy, { fill: '#8a5a3c' })); els.push(R(hx - 0.04, sy - 0.07, 0.08, 0.2, { fill: th.frame, r: 0.02 }));
+        var sy = stringY(hx); els.push(R(hx - 0.006, sy, 0.012, y - sy, { fill: th.frame })); els.push(R(hx - 0.04, sy - 0.07, 0.08, 0.2, { fill: mix(th.frame, '#ffffff', 0.3), r: 0.02 }));
       });
-      els.push(R(x, y, w, h, { fill: o.fill || th.card, line: mix(th.accent, '#ffffff', 0.35), lw: 1.5, r: 0.1 }));
+      els.push(R(x, y, w, h, { fill: o.fill || th.card, line: th.grid, lw: 1.5, r: 0.1 }));
       if (!o.noband) els.push(R(x, y, w, 0.09, { fill: th.accent, r: 0.03 }));
+    } else if (th.key === 'ink') {
+      els.push(R(x, y, w, h, { fill: o.fill || th.tile2, r: 0.22 }));
+    } else if (th.key === 'shop') {
+      els.push(R(x, y, w, h, { fill: o.fill || th.card, line: th.a2, lw: 1.5, r: 0.06 }));
     } else {
-      els.push(R(x, y, w, h, { fill: o.fill || th.card, line: th.frame, lw: 1.25, r: 0.18 }));
+      els.push(R(x, y, w, h, { fill: o.fill || th.paper, r: 0.2, shadow: true }));
     }
   }
   function tagEl(els, th, text, x, y) {
     x = x == null ? 0.5 : x; y = y == null ? 0.58 : y;
     var w = textW(text, 14) + 0.5;
-    els.push(R(x, y, w, 0.42, { fill: th.tag, r: th.key === 'fresh' ? 0.21 : 0.1 }));
+    els.push(R(x, y, w, 0.42, { fill: th.tag, r: th.key === 'shop' ? 0.04 : th.key === 'farm' || th.key === 'diner' ? 0.1 : 0.21 }));
     els.push(T(x, y, w, 0.42, text, { size: 14, color: th.tagInk, bold: true, align: 'center', valign: 'middle', font: 'zh' }));
     return x + w;
   }
-  function tokensRuns(zh, word, size, th) {
-    return zh.split(' ').map(function (t) { return { text: t, size: size, color: (t === word || (word.length > 1 && t.indexOf(word) >= 0)) ? th.accent : th.ink, bold: t === word }; });
-  }
 
-  /* --- 幻灯片 --- */
-  function coverSlide(th) {
-    var els = [], title = deck.title || 'HSK 1 · 生词';
-    tagEl(els, th, '汉语课 · Chinese class');
-    card(els, th, 1.1, 1.3, 7.8, 3.6, { hang: true });
-    els.push(T(1.4, 1.55, 7.2, 1.0, title, { size: 40, bold: true, color: th.ink, align: 'center', valign: 'middle', font: 'zh' }));
-    els.push(T(1.4, 2.55, 7.2, 0.45, 'HSK 3.0 一级 · 共 ' + cart.length + ' 个生词', { size: 16, color: th.ink2, align: 'center', valign: 'middle', font: 'zh' }));
-    els.push(R(3.9, 3.1, 2.2, 0.03, { fill: th.accent }));
-    var shown = cart.slice(0, 24).join('　') + (cart.length > 24 ? '　…' : '');
-    els.push(T(1.5, 3.25, 7.0, 1.5, shown, { size: cart.length > 12 ? 20 : 26, color: th.accent, align: 'center', valign: 'top', font: 'kai', lh: 1.35 }));
-    return { kind: 'cover', els: els, notes: '本课生词：' + cart.join('、') };
-  }
-  function wordSlide(w, i, th) {
-    var els = [], r = LIST[IDX[w]], d = WORDS[w];
-    tagEl(els, th, '生词 ' + (i + 1) + ' / ' + cart.length);
-    els.push(T(7.2, 0.58, 2.3, 0.42, 'HSK1 · No. ' + (IDX[w] + 1), { size: 11, color: th.ink2, align: 'right', valign: 'middle', font: 'py' }));
-    card(els, th, 0.5, 1.25, 5.15, 3.9, { hang: true });
-    els.push(T(0.75, 1.4, 4.65, 0.32, posText(w), { size: 11, color: th.ink2, font: 'zh', valign: 'middle' }));
-    var hs = w.length === 1 ? 110 : w.length === 2 ? 96 : w.length === 3 ? 78 : 62;
-    els.push(T(0.75, 1.72, 4.65, 1.5, w, { size: hs, color: th.ink, font: 'kai', align: 'center', valign: 'middle', lh: 1 }));
-    els.push(T(0.75, 3.2, 4.65, 0.55, r[1], { size: 30, color: th.accent, font: 'py', align: 'center', valign: 'middle' }));
-    els.push({ t: 'say', x: 4.85, y: 3.25, w: 0.46, h: 0.46, text: w });
-    els.push(R(0.85, 3.83, 4.45, 0.02, { fill: mix(th.ink, '#ffffff', 0.75) }));
-    var zh = d ? d.zh.slice(0, 2).join('；') : '', en = d ? d.en.slice(0, 2).join('; ') : r[3];
-    if (zh) els.push(T(0.8, 3.92, 4.55, 0.55, zh, { size: zh.length > 22 ? 13 : 15, color: th.ink, font: 'zh', valign: 'top' }));
-    els.push(T(0.8, zh ? 4.47 : 3.95, 4.55, 0.6, en, { size: 12.5, color: th.ink2, font: 'py', italic: true, valign: 'top' }));
-    card(els, th, 5.9, 1.25, 3.6, 3.9, { hang: true });
-    if (d && d.img) {
-      els.push({ t: 'img', x: 6.07, y: 1.42, w: 3.26, h: 2.445, src: d.img.src });
-      els.push(T(6.07, 3.95, 3.26, 0.5, d.img.cap, { size: 13, color: th.ink, font: 'zh', align: 'center', valign: 'middle' }));
-      els.push(T(6.07, 4.55, 3.26, 0.45, '图：' + d.img.by + ' · ' + d.img.lic, { size: 7, color: th.ink2, font: 'py', align: 'center', valign: 'bottom' }));
-    } else {
-      els.push(T(6.07, 1.5, 3.26, 3.4, w, { size: 90, color: th.soft, font: 'kai', align: 'center', valign: 'middle' }));
+  /* =====================================================================
+     各风格的版式
+     ===================================================================== */
+  var LAY = {};
+
+  /* ---------- 朴物 · 新中式：米色纸、墨色银杏、竖排、印章、圆角色块 ---------- */
+  LAY.ink = {
+    cover: function (th) {
+      var e = [], title = deck.title || 'HSK 1 · 生词';
+      e.push(D(0, 0, 3.0, 1.75, 'gk' + th.ink, paintGinkgo(th.ink)));
+      e.push(D(8.85, 0.55, 0.62, 0.62, 'seal汉语', paintSeal(th.seal, '汉语')));
+      e.push(T(3.2, 0.5, 5.5, 1.2, title, { size: title.length > 8 ? 32 : 40, color: th.ink, font: 'kai', align: 'right', valign: 'middle' }));
+      e.push(caps(3.2, 1.72, 6.25, 0.3, 'CHINESE VOCABULARY  ·  HSK 1', th, { align: 'right', ls: 3 }));
+      e.push(T(3.2, 2.02, 6.25, 0.4, 'HSK 3.0 一级 · 共 ' + cart.length + ' 个生词　｜　听 · 说 · 读 · 写', { size: 12, color: th.ink2, align: 'right', valign: 'middle' }));
+      e.push(R(0.55, 2.65, 8.9, 2.5, { fill: th.tile, r: 0.3 }));
+      var show = cart.length > 12 ? cart.slice(0, 11) : cart, cw = (8.9 - 0.4 - 5 * 0.15) / 6, ch = 0.98;
+      show.forEach(function (w, k) {
+        var x = 0.75 + (k % 6) * (cw + 0.15), y = 2.85 + Math.floor(k / 6) * (ch + 0.15);
+        e.push(R(x, y, cw, ch, { fill: th.card, r: 0.18 }));
+        e.push(T(x, y + 0.06, cw, 0.6, w, { size: w.length > 2 ? 18 : 24, color: th.ink, font: 'kai', align: 'center', valign: 'middle' }));
+        e.push(T(x, y + 0.64, cw, 0.28, LIST[IDX[w]][1], { size: 9, color: th.at, font: 'py', align: 'center', valign: 'middle' }));
+      });
+      if (cart.length > 12) { var x = 0.75 + 5 * (cw + 0.15), y = 2.85 + ch + 0.15; e.push(R(x, y, cw, ch, { fill: th.ink, r: 0.18 })); e.push(T(x, y, cw, ch, '+' + (cart.length - 11), { size: 20, bold: true, color: th.paper, align: 'center', valign: 'middle', font: 'py' })); }
+      return { kind: 'cover', els: e, notes: '本课生词：' + cart.join('、') };
+    },
+    word: function (I, i, th) {
+      var e = [];
+      e.push(R(0.55, 0.75, 4.35, 4.4, { fill: th.tile, r: 0.3 }));
+      var b = fit4x3(0.8, 1.2, 3.85, 2.86); imgBox(e, I, b[0], b[1], b[2], b[3], th, { frameFill: th.card, frameLine: th.card, r: 0.14 });
+      e.push(D(0, 0, 2.1, 1.25, 'gk' + th.ink, paintGinkgo(th.ink)));
+      if (I.img) {
+        e.push(T(0.8, 4.18, 3.85, 0.4, I.img.cap, { size: 14, color: th.ink, font: 'kai', align: 'center', valign: 'middle' }));
+        e.push(T(0.8, 4.6, 3.85, 0.4, '图：' + I.img.by + ' · ' + I.img.lic, { size: 6.5, color: th.ink2, align: 'center', valign: 'middle', font: 'py' }));
+      }
+      e.push(caps(5.25, 0.68, 3.5, 0.3, 'VOCABULARY  ·  ' + (i + 1) + ' / ' + cart.length, th, { ls: 2.5 }));
+      e.push(D(8.95, 0.6, 0.55, 0.55, 'seal生词', paintSeal(th.seal, '生词')));
+      e.push(T(5.15, 1.05, 4.35, 1.55, I.w, { size: hzSize(I.w, 100), color: th.ink, font: 'kai', valign: 'middle', lh: 1 }));
+      e.push(T(5.25, 2.62, 3.6, 0.5, I.py, { size: 26, color: th.at, font: 'py', valign: 'middle' }));
+      e.push(say(8.98, 2.64, 0.46, I.w, th.ink));
+      e.push(R(5.25, 3.24, 4.25, 0.016, { fill: th.ink }));
+      pill(e, 5.25, 3.38, I.pos, { fill: th.ink, color: th.paper, size: 9.5, h: 0.3, font: 'py' });
+      if (I.zh) e.push(T(5.25, 3.76, 4.25, 0.42, I.zh, { size: I.zh.length > 24 ? 12.5 : 15, color: th.ink, valign: 'middle' }));
+      e.push(T(5.25, I.zh ? 4.15 : 3.8, 4.25, 0.42, I.en, { size: 11.5, color: th.ink2, italic: true, font: 'py', valign: 'middle' }));
+      [[I.strokes + ' 画', 'STROKES'], ['No. ' + I.no, 'HSK 1 · 300']].forEach(function (p, k) {
+        var x = 5.25 + k * 2.2;
+        e.push(R(x, 4.62, 2.05, 0.52, { fill: th.tile2, r: 0.16 }));
+        e.push(T(x, 4.62, 2.05, 0.52, [{ text: p[0] + '  ', size: 14, bold: true, color: th.ink, font: 'zh' }, { text: p[1], size: 7.5, color: th.ink2, font: 'py', bold: true }], { align: 'center', valign: 'middle' }));
+      });
+      return { kind: 'word', els: e, notes: wordNotes(I) };
+    },
+    stroke: function (I, th) {
+      var e = [], chars = uniqChars(I.w); if (!chars.length) return null;
+      e.push(R(0.55, 0.75, 1.45, 4.4, { fill: th.ink, r: 0.3 }));
+      e.push(T(0.55, 0.95, 1.45, 1.9, '笔顺', { size: 36, color: th.paper, font: 'kai', align: 'center', valign: 'middle', vert: true }));
+      e.push(R(1.08, 2.95, 0.4, 0.012, { fill: th.tile }));
+      e.push(T(0.55, 3.05, 1.45, 1.95, I.w, { size: I.w.length > 2 ? 18 : 22, color: th.tile2, font: 'kai', align: 'center', valign: 'top', vert: true }));
+      e.push(T(2.35, 0.68, 4.5, 0.4, [{ text: I.py + '   ', size: 16, color: th.at, font: 'py' }, { text: 'STROKE ORDER', size: 8, color: th.ink2, bold: true, font: 'py' }], { valign: 'middle', ls: 1 }));
+      e.push(D(8.4, 4.35, 1.6, 0.95, 'gkf' + th.ink, paintGinkgo(th.ink, true)));
+      var n = chars.length, size = n === 1 ? 3.3 : n === 2 ? 3.05 : 2.1, gap = n === 3 ? 0.25 : 0.4, tot = n * size + (n - 1) * gap, x0 = 2.35 + (7.1 - tot) / 2;
+      chars.forEach(function (c, k) {
+        var x = x0 + k * (size + gap), y = 1.25;
+        e.push(R(x, y, size, size, { fill: th.card, line: th.tile, lw: 1.5, r: 0.22 }));
+        e.push({ t: 'stroke', x: x + 0.12, y: y + 0.12, w: size - 0.24, h: size - 0.24, ch: c, bg: th.card });
+        e.push(T(x - 0.2, y + size + 0.08, size + 0.4, 0.36, charLabel(I, c), { size: 11.5, color: th.ink, align: 'center', valign: 'middle' }));
+      });
+      return { kind: 'stroke', els: e, notes: strokeNotes(I, chars) };
+    },
+    use: function (I, th) {
+      if (!I.ex.length) return null;
+      var e = [];
+      e.push(T(0.6, 0.5, 5, 0.6, [{ text: I.w + '  ', size: 26, color: th.ink, font: 'kai' }, { text: I.py, size: 14, color: th.at, font: 'py' }], { valign: 'middle' }));
+      e.push(caps(5.0, 0.62, 3.8, 0.3, 'COLLOCATIONS  ·  EXAMPLES', th, { align: 'right', ls: 2.5 }));
+      e.push(D(8.95, 0.55, 0.55, 0.55, 'seal例句', paintSeal(th.seal, '例句')));
+      var U = I.use.slice(0, 4), n = Math.max(1, U.length), th1 = Math.min(0.9, (3.85 - (n - 1) * 0.15) / n);
+      U.forEach(function (u, k) {
+        var y = 1.3 + k * (th1 + 0.15);
+        e.push(R(0.55, y, 3.6, th1, { fill: th.tile2, r: 0.2 }));
+        e.push(caps(0.75, y + 0.06, 3.2, 0.22, '搭配 0' + (k + 1), th, { size: 7 }));
+        e.push(T(0.75, y + 0.27, 3.2, th1 - 0.32, u, { size: u.length > 20 ? 11 : 12.5, color: th.ink, valign: 'middle' }));
+      });
+      e.push(R(4.4, 1.3, 5.1, 3.85, { fill: th.card, r: 0.28, shadow: true }));
+      var X = I.ex.slice(0, 3), bh = 3.55 / X.length;
+      X.forEach(function (x, k) {
+        var y = 1.48 + k * bh;
+        if (k) e.push(R(4.7, y - 0.08, 4.55, 0.012, { fill: th.tile }));
+        e.push(R(4.6, y + 0.07, 0.36, 0.36, { fill: th.ink, ellipse: true }));
+        e.push(T(4.6, y + 0.07, 0.36, 0.36, String(k + 1), { size: 11, bold: true, color: th.paper, align: 'center', valign: 'middle', font: 'py' }));
+        e.push(T(5.1, y, 3.65, 0.5, tokensRuns(x.zh, I.w, 18, th), { valign: 'middle' }));
+        e.push(say(8.85, y + 0.05, 0.4, x.zh, th.ink));
+        e.push(T(5.1, y + 0.5, 4.2, 0.28, x.py, { size: 10.5, color: th.ink2, font: 'py', valign: 'middle' }));
+        e.push(T(5.1, y + 0.76, 4.2, 0.28, x.en, { size: 10, color: th.ink2, font: 'py', italic: true, valign: 'middle' }));
+      });
+      return { kind: 'use', els: e, notes: exNotes(X) };
     }
-    var notes = w + '  ' + r[1] + '\n' + (zh ? zh + '\n' : '') + en + (d && d.bop ? '\n\n导入：' + d.bop.b : '');
-    return { kind: 'word', els: els, notes: notes };
+  };
+
+  /* ---------- 复古小铺：格子纸、黑条幅、红色票据、虚线框、投影按钮 ---------- */
+  function shopChrome(e, th, label) {
+    e.push(caps(0.35, 0.04, 4, 0.24, 'HSK 1 · VOCABULARY GOODS', th, { color: th.ink, size: 7 }));
+    e.push(caps(5.65, 0.04, 4, 0.24, "TEACHER'S DECK", th, { color: th.ink, size: 7, align: 'right' }));
+    e.push(R(0, 0.29, 10, 0.03, { fill: th.ink })); e.push(R(0, 0.35, 10, 0.012, { fill: th.ink }));
+    e.push(R(0.35, 0.44, 9.3, 0.42, { fill: th.ink, r: 0.04 }));
+    e.push(T(0.35, 0.44, 9.3, 0.42, '•  •  •     ' + label + '     •  •  •', { size: 13, bold: true, color: th.paper, align: 'center', valign: 'middle', ls: 1 }));
+    e.push(R(0.35, 0.98, 9.3, 4.3, { fill: th.paper, line: th.a2, lw: 2, r: 0.1 }));
+    e.push(R(0.48, 1.1, 9.04, 4.06, { line: th.a2, lw: 1, dash: true, r: 0.06 }));
   }
-  function strokeSlide(w, th) {
-    var chars = w.split('').filter(function (c, i, a) { return STROKES[c] && a.indexOf(c) === i; });
-    if (!chars.length) return null;
-    var els = [], d = WORDS[w], r = LIST[IDX[w]];
-    var tx = tagEl(els, th, '笔顺 · Stroke order');
-    els.push(T(tx + 0.2, 0.55, 4, 0.48, [{ text: w + '  ', size: 22, color: th.ink, font: 'kai' }, { text: r[1], size: 15, color: th.accent, font: 'py' }], { valign: 'middle' }));
-    var n = chars.length, size = n === 1 ? 3.25 : n === 2 ? 3.1 : n === 3 ? 2.7 : 2.05, gap = n >= 3 ? 0.35 : 0.6;
-    var x0 = (10 - (n * size + (n - 1) * gap)) / 2;
-    chars.forEach(function (c, k) {
-      var x = x0 + k * (size + gap), y = 1.32;
-      card(els, th, x, y, size, size, { hang: true, noband: true });
-      var p = th.key === 'farm' ? 0.13 : 0.08;
-      els.push({ t: 'stroke', x: x + p, y: y + p, w: size - 2 * p, h: size - 2 * p, ch: c });
-      var hz = d && d.hz ? d.hz.filter(function (z) { return z.c === c; })[0] : null;
-      var label = c + ' · ' + STROKES[c].strokes.length + ' 画' + (hz ? ' · 部首 ' + hz.rad + (hz.struct ? ' · ' + hz.struct : '') : '');
-      els.push(T(x - 0.2, y + size + 0.07, size + 0.4, 0.36, label, { size: 12.5, color: th.ink, font: 'zh', align: 'center', valign: 'middle' }));
+  LAY.shop = {
+    cover: function (th) {
+      var e = [], title = deck.title || '生词';
+      e.push(T(2.5, 0.12, 5, 0.36, 'V O C A B U L A R Y', { size: 13, bold: true, color: th.at, align: 'center', valign: 'middle', font: 'py' }));
+      e.push(D(3.0, 0.2, 0.22, 0.22, 'sp' + th.at, paintSpark(th.at))); e.push(D(6.78, 0.2, 0.22, 0.22, 'sp' + th.at, paintSpark(th.at)));
+      e.push(T(2.2, 0.5, 5.6, 0.95, title, { size: title.length > 6 ? 32 : 44, bold: true, color: th.at, align: 'center', valign: 'middle' }));
+      e.push(D(1.35, 0.72, 0.75, 0.5, 'chL' + th.at, paintChevrons(th.at, true))); e.push(D(7.9, 0.72, 0.75, 0.5, 'chR' + th.at, paintChevrons(th.at)));
+      e.push(R(0.35, 0.92, 0.95, 0.03, { fill: th.ink })); e.push(R(0.35, 1.0, 0.95, 0.012, { fill: th.ink }));
+      e.push(R(8.7, 0.92, 0.95, 0.03, { fill: th.ink })); e.push(R(8.7, 1.0, 0.95, 0.012, { fill: th.ink }));
+      e.push(caps(0.35, 1.08, 3, 0.22, 'HSK 1 GOODS', th, { color: th.ink, size: 6.5 })); e.push(caps(6.65, 1.08, 3, 0.22, 'CHINESE TALES', th, { color: th.ink, size: 6.5, align: 'right' }));
+      e.push(R(0.35, 1.38, 9.3, 0.44, { fill: th.ink, r: 0.04 }));
+      e.push(T(0.35, 1.38, 9.3, 0.44, '•  •  •     HSK 3.0 一级 · 共 ' + cart.length + ' 个生词     •  •  •', { size: 13, bold: true, color: th.paper, align: 'center', valign: 'middle' }));
+      e.push(R(0.35, 1.95, 9.3, 3.33, { fill: th.paper, line: th.a2, lw: 2, r: 0.1 }));
+      e.push(R(0.48, 2.07, 9.04, 3.09, { line: th.a2, lw: 1, dash: true, r: 0.06 }));
+      var show = cart.slice(0, 12), cw = (8.6 - 5 * 0.16) / 6, ch = 1.32, rows = Math.ceil(show.length / 6), y0 = 2.12 + (3.0 - rows * ch - (rows - 1) * 0.15) / 2;
+      show.forEach(function (w, k) {
+        var x = 0.7 + (k % 6) * (cw + 0.16), y = y0 + Math.floor(k / 6) * (ch + 0.15);
+        e.push(R(x + 0.04, y + 0.045, cw, ch, { fill: th.ink, r: 0.05 }));
+        e.push(R(x, y, cw, ch, { fill: th.card, line: th.ink, lw: 1, r: 0.05 }));
+        e.push(R(x, y, cw, 0.3, { fill: th.accent, r: 0.05 }));
+        e.push(T(x, y, cw, 0.3, 'No. ' + (IDX[w] + 1), { size: 8.5, bold: true, color: th.onA, align: 'center', valign: 'middle', font: 'py' }));
+        e.push(T(x, y + 0.32, cw, 0.62, w, { size: w.length > 2 ? 17 : 23, bold: true, color: th.ink, align: 'center', valign: 'middle' }));
+        e.push(T(x, y + 0.94, cw, 0.3, LIST[IDX[w]][1], { size: 9, color: th.at, align: 'center', valign: 'middle', font: 'py' }));
+      });
+      if (cart.length > 12) e.push(caps(0.7, 4.95, 8.6, 0.2, '… + ' + (cart.length - 12) + ' MORE', th, { align: 'right' }));
+      return { kind: 'cover', els: e, notes: '本课生词：' + cart.join('、') };
+    },
+    word: function (I, i, th) {
+      var e = []; shopChrome(e, th, '生词  VOCABULARY   ' + (i + 1) + ' / ' + cart.length);
+      e.push(R(0.7, 1.3, 3.2, 3.62, { fill: th.card, line: th.a2, lw: 1.5, r: 0.06 }));
+      e.push(caps(0.7, 1.36, 3.2, 0.26, 'W E L C O M E', th, { align: 'center', color: th.a2, size: 8 }));
+      var b = fit4x3(0.88, 1.68, 2.84, 2.13); imgBox(e, I, b[0], b[1], b[2], b[3], th, { frameFill: th.card, frameLine: th.at, lw: 1.2, dash: true, r: 0.03 });
+      if (I.img) {
+        e.push(R(0.85, 3.93, 2.9, 0.4, { fill: th.ink, r: 0.04 }));
+        e.push(T(0.85, 3.93, 2.9, 0.4, I.img.cap, { size: 11, bold: true, color: th.paper, align: 'center', valign: 'middle' }));
+        e.push(T(0.85, 4.38, 2.9, 0.46, '图：' + I.img.by + ' · ' + I.img.lic, { size: 6.5, color: th.ink2, align: 'center', valign: 'middle', font: 'py' }));
+      }
+      e.push(R(4.15, 1.3, 5.15, 1.55, { fill: th.accent, r: 0.08 }));
+      e.push(R(4.15, 1.3, 0.13, 1.55, { fill: th.ink }));
+      e.push(caps(4.42, 1.36, 3, 0.24, "TODAY'S WORD  ·  今日生词", th, { color: th.onA, size: 7 }));
+      e.push(T(4.4, 1.58, 3.0, 0.86, I.w, { size: hzSize(I.w, 54), bold: true, color: th.onA, valign: 'middle' }));
+      e.push(T(4.42, 2.4, 2.4, 0.4, I.py, { size: 17, color: th.onA, font: 'py', valign: 'middle' }));
+      e.push(say(6.9, 2.38, 0.42, I.w, th.ink));
+      e.push(R(7.5, 1.45, 1.65, 1.25, { fill: th.card, line: th.ink, lw: 1, r: 0.06 }));
+      e.push(caps(7.5, 1.5, 1.65, 0.26, 'No.', th, { align: 'center' }));
+      e.push(T(7.5, 1.76, 1.65, 0.55, String(I.no), { size: 26, bold: true, color: th.at, align: 'center', valign: 'middle', font: 'py' }));
+      e.push(T(7.5, 2.32, 1.65, 0.3, 'HSK 1 · 300', { size: 8.5, color: th.ink2, align: 'center', valign: 'middle', font: 'py' }));
+      e.push(R(4.15, 3.03, 5.15, 1.26, { line: th.a2, lw: 1.2, dash: true, r: 0.06 }));
+      e.push(caps(4.32, 3.08, 3, 0.26, '意思  MEANING', th, { color: th.a2 }));
+      if (I.zh) e.push(T(4.32, 3.33, 4.85, 0.45, I.zh, { size: I.zh.length > 24 ? 12.5 : 15, color: th.ink, valign: 'middle' }));
+      e.push(T(4.32, I.zh ? 3.78 : 3.4, 4.85, 0.42, I.en, { size: 11, color: th.ink2, italic: true, font: 'py', valign: 'middle' }));
+      var x = 4.15; x = pill(e, x, 4.45, I.pos, { fill: th.card, color: th.ink, line: th.ink, drop: th.ink, size: 10, h: 0.4, font: 'py' }) + 0.2;
+      x = pill(e, x, 4.45, I.strokes + ' 画', { fill: th.a2, color: onColor(th.a2), line: th.ink, drop: th.ink, size: 11, h: 0.4 }) + 0.2;
+      pill(e, x, 4.45, 'HSK 1', { fill: th.accent, color: th.onA, line: th.ink, drop: th.ink, size: 10, h: 0.4, font: 'py' });
+      return { kind: 'word', els: e, notes: wordNotes(I) };
+    },
+    stroke: function (I, th) {
+      var e = [], chars = uniqChars(I.w); if (!chars.length) return null;
+      shopChrome(e, th, '笔顺  STROKE ORDER   ' + I.w + '  ' + I.py);
+      var n = chars.length, size = n === 1 ? 3.0 : n === 2 ? 2.9 : 2.4, gap = 0.45, tot = n * size + (n - 1) * gap, x0 = (10 - tot) / 2;
+      chars.forEach(function (c, k) {
+        var x = x0 + k * (size + gap), y = 1.3;
+        e.push(R(x + 0.05, y + 0.06, size, size + 0.4, { fill: th.ink, r: 0.05 }));
+        e.push(R(x, y, size, size + 0.4, { fill: th.card, line: th.ink, lw: 1.2, r: 0.05 }));
+        e.push(R(x, y, size, 0.4, { fill: th.accent, r: 0.05 }));
+        e.push(T(x, y, size, 0.4, c + '   ·   ' + STROKES[c].strokes.length + ' 画', { size: 12, bold: true, color: th.onA, align: 'center', valign: 'middle' }));
+        e.push({ t: 'stroke', x: x + 0.1, y: y + 0.48, w: size - 0.2, h: size - 0.2, ch: c, bg: th.card });
+        e.push(T(x - 0.2, y + size + 0.48, size + 0.4, 0.3, charLabel(I, c).split(' · ').slice(2).join(' · ') || ' ', { size: 10, color: th.ink, align: 'center', valign: 'middle' }));
+      });
+      return { kind: 'stroke', els: e, notes: strokeNotes(I, chars) };
+    },
+    use: function (I, th) {
+      if (!I.ex.length) return null;
+      var e = []; shopChrome(e, th, '搭配 · 例句   ' + I.w + '  ' + I.py);
+      e.push(caps(0.7, 1.28, 3, 0.28, '搭配  PATTERNS', th, { color: th.a2 }));
+      var U = I.use.slice(0, 4), n = Math.max(1, U.length), h = Math.min(0.78, (3.3 - (n - 1) * 0.14) / n);
+      U.forEach(function (u, k) {
+        var y = 1.6 + k * (h + 0.14);
+        e.push(R(0.7, y, 3.2, h, { fill: th.card, line: th.a2, lw: 1, dash: true, r: 0.05 }));
+        e.push(T(0.88, y, 2.9, h, u, { size: u.length > 20 ? 11 : 12.5, color: th.ink, valign: 'middle' }));
+      });
+      var X = I.ex.slice(0, 3), bh = 1.05, gap = (3.6 - X.length * bh) / Math.max(1, X.length - 1);
+      X.forEach(function (x, k) {
+        var y = 1.3 + k * (bh + Math.min(gap, 0.18));
+        e.push(R(4.19, y + 0.05, 5.1, bh, { fill: th.ink, r: 0.05 }));
+        e.push(R(4.15, y, 5.1, bh, { fill: th.card, line: th.ink, lw: 1, r: 0.05 }));
+        e.push(R(4.15, y, 0.55, bh, { fill: th.accent, r: 0.05 }));
+        e.push(T(4.15, y, 0.55, bh, '例' + (k + 1), { size: 12, bold: true, color: th.onA, align: 'center', valign: 'middle', vert: true }));
+        e.push(T(4.85, y + 0.05, 3.75, 0.46, tokensRuns(x.zh, I.w, 17, th), { valign: 'middle' }));
+        e.push(T(4.85, y + 0.5, 4.25, 0.25, x.py, { size: 9.5, color: th.ink2, font: 'py', valign: 'middle' }));
+        e.push(T(4.85, y + 0.74, 4.25, 0.25, x.en, { size: 9.5, color: th.ink2, italic: true, font: 'py', valign: 'middle' }));
+        e.push(say(8.72, y + 0.1, 0.4, x.zh, th.ink));
+      });
+      return { kind: 'use', els: e, notes: exNotes(X) };
+    }
+  };
+
+  /* ---------- 暖调面板：地毯纹背景、奶油大面板、侧边词表、统计卡、进度环 ---------- */
+  function panelChrome(e, th, cur, head, sub) {
+    e.push(R(0.35, 0.3, 9.3, 5.0, { fill: th.card, r: 0.3, shadow: true }));
+    e.push(R(0.35, 0.3, 1.9, 5.0, { fill: th.a2dark, r: 0.3 })); e.push(R(1.95, 0.3, 0.3, 5.0, { fill: th.a2dark }));
+    e.push(R(0.55, 0.52, 0.38, 0.38, { fill: th.accent, r: 0.09 }));
+    e.push(T(0.55, 0.52, 0.38, 0.38, '汉', { size: 14, bold: true, color: th.onA, align: 'center', valign: 'middle', font: 'kai' }));
+    var light = mix(th.a2dark, '#ffffff', 0.6);
+    e.push(T(1.02, 0.48, 1.2, 0.46, [{ text: 'HSK 1', size: 12, bold: true, color: '#ffffff', font: 'py', br: true }, { text: '生词表 · Words', size: 7.5, color: light }], { valign: 'middle', lh: 1.15 }));
+    e.push(caps(0.55, 1.08, 1.6, 0.22, 'WORDS  ' + cart.length, th, { color: light, size: 7 }));
+    var i = cart.indexOf(cur), max = 12, s = Math.max(0, Math.min(i - 5, cart.length - max)); if (s < 0 || i < 0) s = 0;
+    cart.slice(s, s + max).forEach(function (w, k) {
+      var y = 1.36 + k * 0.31, on = w === cur;
+      if (on) e.push(R(0.47, y, 1.68, 0.28, { fill: mix(th.a2dark, '#ffffff', 0.2), r: 0.14 }));
+      e.push(T(0.64, y, 1.5, 0.28, [{ text: w, size: 11.5, color: on ? '#ffffff' : light, font: 'kai' }, { text: '  ' + LIST[IDX[w]][1], size: 7, color: light, font: 'py' }], { valign: 'middle' }));
     });
-    var tips = d && d.hz ? d.hz.filter(function (z) { return chars.indexOf(z.c) >= 0; }).map(function (z) { return z.c + '：' + z.tip; }).join('\n') : '';
-    return { kind: 'stroke', els: els, notes: tips };
+    if (cart.length > max) e.push(caps(0.55, 5.05, 1.6, 0.2, (s + 1) + '–' + Math.min(cart.length, s + max) + ' / ' + cart.length, th, { color: light, size: 6.5 }));
+    e.push(T(2.5, 0.46, 4.2, 0.46, head, { size: 20, bold: true, color: th.ink, valign: 'middle' }));
+    e.push(caps(2.5, 0.9, 4.5, 0.26, sub, th, { ls: 1.5 }));
   }
-  function useSlide(w, th) {
-    var d = WORDS[w]; if (!d || !d.ex || !d.ex.length) return null;
-    var els = [], r = LIST[IDX[w]];
-    var tx = tagEl(els, th, '搭配 · 例句');
-    els.push(T(tx + 0.2, 0.55, 4, 0.48, [{ text: w + '  ', size: 22, color: th.ink, font: 'kai' }, { text: r[1], size: 15, color: th.accent, font: 'py' }], { valign: 'middle' }));
-    card(els, th, 0.5, 1.25, 3.45, 3.9, { hang: true });
-    els.push(T(0.75, 1.42, 3.0, 0.4, '常用搭配', { size: 15, bold: true, color: th.accent, font: 'zh', valign: 'middle' }));
-    var lines = (d.use && d.use.length ? d.use : (d.rel || []).map(function (x) { return x + '  ' + (LIST[IDX[x]] || ['', ''])[1]; })).slice(0, 4);
-    var runs = []; lines.forEach(function (u, k) { runs.push({ text: '• ' + u, br: k < lines.length - 1 }); });
-    els.push(T(0.75, 1.9, 3.0, 3.1, runs, { size: lines.join('').length > 70 ? 12 : 13.5, color: th.ink, font: 'zh', valign: 'top', lh: 1.45, gap: 6 }));
-    card(els, th, 4.2, 1.25, 5.3, 3.9, { hang: true });
-    var exs = d.ex.slice(0, 3), bh = 3.6 / exs.length;
-    exs.forEach(function (e, k) {
-      var y = 1.42 + k * bh;
-      if (k) els.push(R(4.45, y - 0.06, 4.8, 0.015, { fill: mix(th.ink, '#ffffff', 0.8) }));
-      els.push(T(4.45, y, 4.25, 0.5, tokensRuns(e.zh, w, 19, th), { font: 'zh', valign: 'middle' }));
-      els.push({ t: 'say', x: 8.85, y: y + 0.05, w: 0.4, h: 0.4, text: e.zh });
-      els.push(T(4.45, y + 0.5, 4.8, 0.3, e.py, { size: 11.5, color: th.ink2, font: 'py', valign: 'middle' }));
-      els.push(T(4.45, y + 0.8, 4.8, 0.3, e.en, { size: 11, color: th.ink2, font: 'py', italic: true, valign: 'middle' }));
-    });
-    return { kind: 'use', els: els, notes: exs.map(function (e) { return e.zh.replace(/ /g, '') + '  ' + e.py + '  ' + e.en; }).join('\n') };
-  }
+  LAY.panel = {
+    cover: function (th) {
+      var e = []; panelChrome(e, th, null, deck.title || 'HSK 1 · 生词', 'OVERVIEW  ·  HSK 3.0 一级');
+      var chars = {}, strokes = 0; cart.forEach(function (w) { w.split('').forEach(function (c) { chars[c] = 1; }); strokes += info(w).strokes; });
+      [['生词', 'WORDS', cart.length, th.paper], ['汉字', 'CHARACTERS', Object.keys(chars).length, th.a2soft], ['笔画', 'STROKES', strokes, th.paper]].forEach(function (s, k) {
+        var x = 2.5 + k * 2.35;
+        e.push(R(x, 1.3, 2.2, 1.55, { fill: s[3], r: 0.22, shadow: k !== 1 }));
+        e.push(caps(x + 0.2, 1.4, 1.9, 0.26, s[1] + '  ' + s[0], th));
+        e.push(T(x + 0.2, 1.66, 1.9, 1.0, String(s[2]), { size: 48, bold: true, color: k === 1 ? th.a2dark : th.at, valign: 'middle', font: 'py' }));
+      });
+      e.push(R(2.5, 3.0, 6.9, 2.15, { fill: th.paper, r: 0.22 }));
+      e.push(caps(2.7, 3.08, 4, 0.28, 'THIS LESSON  本课生词', th));
+      var x = 2.7, y = 3.42;
+      cart.slice(0, 24).forEach(function (w) {
+        var t = w + ' ' + LIST[IDX[w]][1], wd = textW(t, 10.5) + 0.3;
+        if (x + wd > 9.25) { x = 2.7; y += 0.4; }
+        if (y > 4.85) return;
+        x = pill(e, x, y, t, { fill: th.card, color: th.ink, line: th.tile, size: 10.5, h: 0.32, bold: false }) + 0.1;
+      });
+      return { kind: 'cover', els: e, notes: '本课生词：' + cart.join('、') };
+    },
+    word: function (I, i, th) {
+      var e = []; panelChrome(e, th, I.w, '生词 · Vocabulary', 'WORD ' + (i + 1) + ' OF ' + cart.length + '  ·  HSK 1 No. ' + I.no);
+      var x = pill(e, 9.4, 0.52, '+ ' + I.pos, { right: true, fill: th.accent, color: th.onA, size: 9.5, h: 0.34, font: 'py' }) - 0.12;
+      pill(e, x, 0.52, I.strokes + ' 画', { right: true, fill: th.card, color: th.ink, line: th.ink2, size: 10, h: 0.34 });
+      e.push(R(2.5, 1.3, 3.0, 1.8, { fill: th.paper, r: 0.22, shadow: true }));
+      e.push(caps(2.7, 1.38, 2.6, 0.26, 'WORD  生词', th));
+      e.push(T(2.6, 1.62, 2.8, 1.42, I.w, { size: hzSize(I.w, 66), color: th.at, font: 'kai', align: 'center', valign: 'middle', lh: 1 }));
+      e.push(R(5.65, 1.3, 2.0, 1.8, { fill: th.a2soft, r: 0.22 }));
+      e.push(caps(5.82, 1.38, 1.7, 0.26, 'PINYIN  拼音', th, { color: th.a2dark }));
+      e.push(T(5.75, 1.7, 1.8, 0.6, I.py, { size: I.py.length > 9 ? 14 : I.py.length > 6 ? 18 : 23, color: th.a2dark, font: 'py', align: 'center', valign: 'middle' }));
+      e.push(say(6.43, 2.48, 0.44, I.w, th.a2));
+      e.push(R(7.8, 1.3, 1.6, 1.8, { fill: th.paper, r: 0.22, shadow: true }));
+      var ringKey = 'ring' + (i + 1) + '/' + cart.length + th.accent + th.a2soft;
+      e.push(D(8.07, 1.42, 1.06, 1.06, ringKey, paintRing((i + 1) / cart.length, th.accent, th.tile2)));
+      e.push(T(8.07, 1.42, 1.06, 1.06, (i + 1) + '/' + cart.length, { size: 12, bold: true, color: th.ink, align: 'center', valign: 'middle', font: 'py' }));
+      e.push(caps(7.8, 2.6, 1.6, 0.3, 'PROGRESS', th, { align: 'center' }));
+      e.push(R(2.5, 3.25, 2.75, 1.9, { fill: th.paper, r: 0.22, shadow: true }));
+      var b = fit4x3(2.65, 3.38, 2.45, 1.64); imgBox(e, I, b[0], b[1], b[2], b[3], th, { frameFill: th.frame, frameLine: th.frame, r: 0.1 });
+      e.push(R(5.4, 3.25, 4.0, 1.9, { fill: th.paper, r: 0.22 }));
+      e.push(caps(5.58, 3.33, 3, 0.26, 'MEANING  意思', th));
+      if (I.zh) e.push(T(5.58, 3.58, 3.7, 0.42, I.zh, { size: I.zh.length > 22 ? 12 : 14, color: th.ink, valign: 'middle' }));
+      e.push(T(5.58, I.zh ? 3.98 : 3.62, 3.7, 0.36, I.en, { size: 10.5, color: th.ink2, italic: true, font: 'py', valign: 'middle' }));
+      if (I.ex[0]) {
+        e.push(R(5.58, 4.42, 3.65, 0.58, { fill: th.card, r: 0.29 }));
+        e.push(T(5.75, 4.42, 3.0, 0.58, tokensRuns(I.ex[0].zh, I.w, 12.5, th), { valign: 'middle' }));
+        e.push(say(8.75, 4.5, 0.42, I.ex[0].zh, th.accent));
+      }
+      if (I.img) e.push(T(2.5, 5.12, 2.75, 0.16, '图：' + I.img.by + ' · ' + I.img.lic, { size: 5.5, color: th.ink2, align: 'center', valign: 'middle', font: 'py' }));
+      return { kind: 'word', els: e, notes: wordNotes(I) };
+    },
+    stroke: function (I, th) {
+      var e = [], chars = uniqChars(I.w); if (!chars.length) return null;
+      panelChrome(e, th, I.w, '笔顺 · ' + I.w, 'STROKE ORDER  ·  ' + I.py);
+      pill(e, 9.4, 0.52, I.strokes + ' 画', { right: true, fill: th.accent, color: th.onA, size: 10, h: 0.34 });
+      var n = chars.length, size = n === 1 ? 3.25 : n === 2 ? 2.95 : 2.1, gap = 0.3, tot = n * size + (n - 1) * gap, x0 = 2.5 + (6.9 - tot) / 2, y = 1.3 + (3.85 - size - 0.5) / 2;
+      chars.forEach(function (c, k) {
+        var x = x0 + k * (size + gap);
+        e.push(R(x, y, size, size + 0.5, { fill: th.paper, r: 0.22, shadow: true }));
+        e.push({ t: 'stroke', x: x + 0.12, y: y + 0.12, w: size - 0.24, h: size - 0.24, ch: c, bg: th.paper });
+        e.push(T(x, y + size, size, 0.42, charLabel(I, c), { size: 10.5, color: th.ink, align: 'center', valign: 'middle' }));
+      });
+      return { kind: 'stroke', els: e, notes: strokeNotes(I, chars) };
+    },
+    use: function (I, th) {
+      if (!I.ex.length) return null;
+      var e = []; panelChrome(e, th, I.w, '搭配 · 例句', 'PATTERNS & EXAMPLES  ·  ' + I.w + ' ' + I.py);
+      e.push(R(2.5, 1.3, 2.7, 3.85, { fill: th.paper, r: 0.22 }));
+      e.push(caps(2.68, 1.38, 2.4, 0.26, 'PATTERNS  搭配', th));
+      var U = I.use.slice(0, 4), n = Math.max(1, U.length), h = Math.min(0.72, (3.3 - (n - 1) * 0.12) / n);
+      U.forEach(function (u, k) {
+        var y = 1.7 + k * (h + 0.12);
+        e.push(R(2.65, y, 2.4, h, { fill: k % 2 ? th.a2soft : th.card, r: 0.16 }));
+        e.push(T(2.8, y, 2.15, h, u, { size: u.length > 18 ? 10.5 : 12, color: th.ink, valign: 'middle' }));
+      });
+      e.push(R(5.35, 1.3, 4.05, 3.85, { fill: th.paper, r: 0.22, shadow: true }));
+      e.push(caps(5.53, 1.38, 3, 0.26, 'EXAMPLES  例句', th));
+      var X = I.ex.slice(0, 3), bh = 3.35 / X.length;
+      X.forEach(function (x, k) {
+        var y = 1.72 + k * bh;
+        e.push(R(5.5, y + 0.06, 0.38, 0.38, { fill: k % 2 ? th.a2 : th.accent, ellipse: true }));
+        e.push(T(5.5, y + 0.06, 0.38, 0.38, String(k + 1), { size: 11, bold: true, color: '#ffffff', align: 'center', valign: 'middle', font: 'py' }));
+        e.push(T(6.0, y, 2.85, 0.5, tokensRuns(x.zh, I.w, 15, th), { valign: 'middle' }));
+        e.push(T(6.0, y + 0.48, 3.3, 0.26, x.py, { size: 9, color: th.ink2, font: 'py', valign: 'middle' }));
+        e.push(T(6.0, y + 0.72, 3.3, 0.26, x.en, { size: 9, color: th.ink2, italic: true, font: 'py', valign: 'middle' }));
+        e.push(say(8.92, y + 0.06, 0.38, x.zh, th.a2));
+      });
+      return { kind: 'use', els: e, notes: exNotes(X) };
+    }
+  };
+
+  /* ---------- 秋日农场 / 小餐馆（原有版式，颜色改为由主色推导） ---------- */
+  var LAY_OLD = {
+    cover: function (th) {
+      var els = [], title = deck.title || 'HSK 1 · 生词';
+      tagEl(els, th, '汉语课 · Chinese class');
+      card(els, th, 1.1, 1.3, 7.8, 3.6, { hang: true });
+      els.push(T(1.4, 1.55, 7.2, 1.0, title, { size: 40, bold: true, color: th.ink, align: 'center', valign: 'middle' }));
+      els.push(T(1.4, 2.55, 7.2, 0.45, 'HSK 3.0 一级 · 共 ' + cart.length + ' 个生词', { size: 16, color: th.ink2, align: 'center', valign: 'middle' }));
+      els.push(R(3.9, 3.1, 2.2, 0.03, { fill: th.accent }));
+      els.push(T(1.5, 3.25, 7.0, 1.5, cart.slice(0, 24).join('　') + (cart.length > 24 ? '　…' : ''), { size: cart.length > 12 ? 20 : 26, color: th.at, align: 'center', valign: 'top', font: 'kai', lh: 1.35 }));
+      return { kind: 'cover', els: els, notes: '本课生词：' + cart.join('、') };
+    },
+    word: function (I, i, th) {
+      var els = [];
+      tagEl(els, th, '生词 ' + (i + 1) + ' / ' + cart.length);
+      els.push(T(7.2, 0.58, 2.3, 0.42, 'HSK1 · No. ' + I.no, { size: 11, color: th.ink2, align: 'right', valign: 'middle', font: 'py' }));
+      card(els, th, 0.5, 1.25, 5.15, 3.9, { hang: true });
+      els.push(T(0.75, 1.4, 4.65, 0.32, posText(I.w), { size: 11, color: th.ink2, valign: 'middle' }));
+      els.push(T(0.75, 1.72, 4.65, 1.5, I.w, { size: hzSize(I.w, 110), color: th.ink, font: 'kai', align: 'center', valign: 'middle', lh: 1 }));
+      els.push(T(0.75, 3.2, 4.65, 0.55, I.py, { size: 30, color: th.at, font: 'py', align: 'center', valign: 'middle' }));
+      els.push(say(4.85, 3.25, 0.46, I.w, th.accent));
+      els.push(R(0.85, 3.83, 4.45, 0.02, { fill: th.outline }));
+      if (I.zh) els.push(T(0.8, 3.92, 4.55, 0.55, I.zh, { size: I.zh.length > 22 ? 13 : 15, color: th.ink, valign: 'top' }));
+      els.push(T(0.8, I.zh ? 4.47 : 3.95, 4.55, 0.6, I.en, { size: 12.5, color: th.ink2, font: 'py', italic: true, valign: 'top' }));
+      card(els, th, 5.9, 1.25, 3.6, 3.9, { hang: true });
+      imgBox(els, I, 6.07, 1.42, 3.26, 2.445, th, { frameFill: th.frame, frameLine: th.frame, r: 0.06 });
+      if (I.img) {
+        els.push(T(6.07, 3.95, 3.26, 0.5, I.img.cap, { size: 13, color: th.ink, align: 'center', valign: 'middle' }));
+        els.push(T(6.07, 4.55, 3.26, 0.45, '图：' + I.img.by + ' · ' + I.img.lic, { size: 7, color: th.ink2, font: 'py', align: 'center', valign: 'bottom' }));
+      }
+      return { kind: 'word', els: els, notes: wordNotes(I) };
+    },
+    stroke: function (I, th) {
+      var chars = uniqChars(I.w); if (!chars.length) return null;
+      var els = [], tx = tagEl(els, th, '笔顺 · Stroke order');
+      els.push(T(tx + 0.2, 0.55, 4, 0.48, [{ text: I.w + '  ', size: 22, color: th.ink, font: 'kai' }, { text: I.py, size: 15, color: th.at, font: 'py' }], { valign: 'middle' }));
+      var n = chars.length, size = n === 1 ? 3.25 : n === 2 ? 3.1 : 2.7, gap = n >= 3 ? 0.35 : 0.6, x0 = (10 - (n * size + (n - 1) * gap)) / 2;
+      chars.forEach(function (c, k) {
+        var x = x0 + k * (size + gap), y = 1.32, p = th.key === 'farm' ? 0.13 : 0.08;
+        card(els, th, x, y, size, size, { hang: true, noband: true });
+        els.push({ t: 'stroke', x: x + p, y: y + p, w: size - 2 * p, h: size - 2 * p, ch: c, bg: th.card });
+        els.push(T(x - 0.2, y + size + 0.07, size + 0.4, 0.36, charLabel(I, c), { size: 12.5, color: th.ink, align: 'center', valign: 'middle' }));
+      });
+      return { kind: 'stroke', els: els, notes: strokeNotes(I, chars) };
+    },
+    use: function (I, th) {
+      if (!I.ex.length) return null;
+      var els = [], tx = tagEl(els, th, '搭配 · 例句');
+      els.push(T(tx + 0.2, 0.55, 4, 0.48, [{ text: I.w + '  ', size: 22, color: th.ink, font: 'kai' }, { text: I.py, size: 15, color: th.at, font: 'py' }], { valign: 'middle' }));
+      card(els, th, 0.5, 1.25, 3.45, 3.9, { hang: true });
+      els.push(T(0.75, 1.42, 3.0, 0.4, '常用搭配', { size: 15, bold: true, color: th.at, valign: 'middle' }));
+      var lines = I.use.slice(0, 4), runs = lines.map(function (u, k) { return { text: '• ' + u, br: k < lines.length - 1 }; });
+      els.push(T(0.75, 1.9, 3.0, 3.1, runs, { size: lines.join('').length > 70 ? 12 : 13.5, color: th.ink, valign: 'top', lh: 1.45, gap: 6 }));
+      card(els, th, 4.2, 1.25, 5.3, 3.9, { hang: true });
+      var X = I.ex.slice(0, 3), bh = 3.6 / X.length;
+      X.forEach(function (x, k) {
+        var y = 1.42 + k * bh;
+        if (k) els.push(R(4.45, y - 0.06, 4.8, 0.015, { fill: th.outline }));
+        els.push(T(4.45, y, 4.25, 0.5, tokensRuns(x.zh, I.w, 19, th), { valign: 'middle' }));
+        els.push(say(8.85, y + 0.05, 0.4, x.zh, th.accent));
+        els.push(T(4.45, y + 0.5, 4.8, 0.3, x.py, { size: 11.5, color: th.ink2, font: 'py', valign: 'middle' }));
+        els.push(T(4.45, y + 0.8, 4.8, 0.3, x.en, { size: 11, color: th.ink2, font: 'py', italic: true, valign: 'middle' }));
+      });
+      return { kind: 'use', els: els, notes: exNotes(X) };
+    }
+  };
+  LAY.farm = LAY_OLD; LAY.diner = LAY_OLD;
+  function strokeNotes(I, chars) { return I.d && I.d.hz ? I.d.hz.filter(function (z) { return chars.indexOf(z.c) >= 0; }).map(function (z) { return z.c + '：' + z.tip; }).join('\n') : ''; }
+  function exNotes(X) { return X.map(function (e) { return e.zh.replace(/ /g, '') + '  ' + e.py + '  ' + e.en; }).join('\n'); }
+
+  /* --- 复习页 / 对话页（各风格共用，卡片样式随风格） --- */
   function reviewSlide(words, th, off) {
     var els = [];
     tagEl(els, th, '复习 · Review' + (cart.length > 20 ? '（' + (off + 1) + '–' + (off + words.length) + '）' : ''));
     var cols = 5, gx = 0.15, gy = 0.12, cw = (9 - (cols - 1) * gx) / cols, rows = Math.ceil(words.length / cols), ch = Math.min(0.9, (3.85 - (rows - 1) * gy) / Math.max(rows, 1));
     words.forEach(function (w, k) {
       var x = 0.5 + (k % cols) * (cw + gx), y = 1.28 + Math.floor(k / cols) * (ch + gy);
-      card(els, th, x, y, cw, ch, { plain: th.key !== 'fresh', fill: th.card });
-      if (th.key !== 'fresh') els.push(R(x, y, cw, ch, { fill: th.card, line: th.key === 'farm' ? th.frame : mix(th.accent, '#ffffff', 0.4), lw: 1.5, r: 0.1 }));
+      if (th.key === 'farm' || th.key === 'diner') els.push(R(x, y, cw, ch, { fill: th.card, line: th.key === 'farm' ? th.frame : th.grid, lw: 1.5, r: 0.1 }));
+      else card(els, th, x, y, cw, ch, { fill: k % 2 && th.key === 'panel' ? th.a2soft : null });
       els.push(T(x, y + 0.04, cw, ch * 0.6, w, { size: w.length > 2 ? 21 : 26, color: th.ink, font: 'kai', align: 'center', valign: 'middle' }));
-      els.push(T(x, y + ch * 0.6, cw, ch * 0.36, LIST[IDX[w]][1], { size: 11, color: th.accent, font: 'py', align: 'center', valign: 'middle' }));
+      els.push(T(x, y + ch * 0.6, cw, ch * 0.36, LIST[IDX[w]][1], { size: 11, color: th.at, font: 'py', align: 'center', valign: 'middle' }));
     });
     return { kind: 'review', els: els, notes: '请学生读出每个词，再说一个用这个词的句子。' };
   }
   function dialogSlide(dl, th) {
     var els = [], lines = (dl.lines || []).slice(0, 6);
     var tx = tagEl(els, th, '情境对话 · Dialogue');
-    if (dl.title) els.push(T(tx + 0.2, 0.55, 5, 0.48, dl.title, { size: 18, color: th.ink, font: 'zh', valign: 'middle', bold: true }));
+    if (dl.title) els.push(T(tx + 0.2, 0.55, 5, 0.48, dl.title, { size: 18, color: th.ink, valign: 'middle', bold: true }));
     var h = 0.56, gap = 0.08;
     lines.forEach(function (l, k) {
       var A = k % 2 === 0, y = 1.3 + k * (h + gap), x = A ? 1.15 : 2.75, w = 6.1;
-      els.push(R(A ? 0.55 : 9.0, y + 0.06, 0.44, 0.44, { fill: A ? th.accent : th.tag, ellipse: true }));
-      els.push(T(A ? 0.55 : 9.0, y + 0.06, 0.44, 0.44, l.who || (A ? 'A' : 'B'), { size: 14, bold: true, color: '#ffffff', align: 'center', valign: 'middle', font: 'py' }));
-      els.push(R(x, y, w, h, { fill: A ? th.card : th.soft, line: mix(th.ink, '#ffffff', 0.78), lw: 1, r: 0.16 }));
-      els.push(T(x + 0.18, y + 0.03, w - 0.75, 0.3, l.zh || '', { size: 16, color: th.ink, font: 'zh', valign: 'middle' }));
+      els.push(R(A ? 0.55 : 9.0, y + 0.06, 0.44, 0.44, { fill: A ? th.accent : th.a2, ellipse: true }));
+      els.push(T(A ? 0.55 : 9.0, y + 0.06, 0.44, 0.44, l.who || (A ? 'A' : 'B'), { size: 14, bold: true, color: A ? th.onA : onColor(th.a2), align: 'center', valign: 'middle', font: 'py' }));
+      els.push(R(x, y, w, h, { fill: A ? th.card : th.soft, line: th.outline, lw: 1, r: 0.16 }));
+      els.push(T(x + 0.18, y + 0.03, w - 0.75, 0.3, l.zh || '', { size: 16, color: th.ink, valign: 'middle' }));
       els.push(T(x + 0.18, y + 0.31, w - 0.75, 0.22, l.py || '', { size: 10, color: th.ink2, font: 'py', valign: 'middle' }));
-      els.push({ t: 'say', x: x + w - 0.48, y: y + 0.09, w: 0.38, h: 0.38, text: l.zh || '' });
+      els.push(say(x + w - 0.48, y + 0.09, 0.38, l.zh || '', A ? th.accent : th.a2));
     });
     return { kind: 'dialog', els: els, notes: lines.map(function (l) { return (l.who || '') + '：' + l.zh + '  ' + (l.en || ''); }).join('\n') };
   }
   function buildSlides(th, dlg) {
-    var S = [], P = deck.parts;
-    if (P.cover) S.push(coverSlide(th));
+    var S = [], P = deck.parts, L = LAY[th.key] || LAY.ink;
+    if (P.cover) S.push(L.cover(th));
     cart.forEach(function (w, i) {
-      if (P.word) S.push(wordSlide(w, i, th));
-      if (P.stroke) { var s = strokeSlide(w, th); if (s) S.push(s); }
-      if (P.use) { var u = useSlide(w, th); if (u) S.push(u); }
+      var I = info(w);
+      if (P.word) S.push(L.word(I, i, th));
+      if (P.stroke) { var s = L.stroke(I, th); if (s) S.push(s); }
+      if (P.use) { var u = L.use(I, th); if (u) S.push(u); }
     });
     if (P.dialog && dlg) S.push(dialogSlide(dlg, th));
     if (P.review) for (var k = 0; k < cart.length; k += 20) S.push(reviewSlide(cart.slice(k, k + 20), th, k));
@@ -447,18 +907,18 @@
   function slideHTML(s, th, cls) {
     return '<div class="sl ' + bgClass(th) + ' ' + (cls || '') + '">' + s.els.map(function (e) {
       var pos = 'left:' + pc(e.x, 10) + ';top:' + pc(e.y, 5.625) + ';width:' + pc(e.w, 10) + ';height:' + pc(e.h, 5.625) + ';';
-      if (e.t === 'rect') return '<div class="se" style="' + pos + 'background:' + (e.fill || 'transparent') + ';' + (e.line ? 'border:' + cq(e.lw || 1) + ' solid ' + e.line + ';' : '') + 'border-radius:' + (e.ellipse ? '50%' : ((e.r || 0) * 10).toFixed(3) + 'cqw') + '"></div>';
+      if (e.t === 'rect') return '<div class="se" style="' + pos + 'background:' + (e.fill || 'transparent') + ';' + (e.line ? 'border:' + cq(e.lw || 1) + ' ' + (e.dash ? 'dashed' : 'solid') + ' ' + e.line + ';' : '') + (e.shadow ? 'box-shadow:0 .5cqw 1.4cqw -.5cqw rgba(60,40,20,.35);' : '') + 'border-radius:' + (e.ellipse ? '50%' : ((e.r || 0) * 10).toFixed(3) + 'cqw') + '"></div>';
       if (e.t === 'text') {
-        var f = FONT[e.font || 'zh'][0];
         var inner = e.runs.map(function (r) {
           var st = (r.size ? 'font-size:' + cq(r.size) + ';' : '') + (r.color ? 'color:' + r.color + ';' : '') + (r.bold ? 'font-weight:700;' : '') + (r.font ? 'font-family:' + FONT[r.font][0] + ';' : '');
           return '<span style="' + st + '">' + esc(r.text) + '</span>' + (r.br ? '<br>' + (e.gap ? '<span class="gap" style="height:' + cq(e.gap) + '"></span>' : '') : '');
         }).join('');
-        return '<div class="se st" style="' + pos + 'justify-content:' + ({ top: 'flex-start', bottom: 'flex-end' }[e.valign] || 'center') + ';text-align:' + (e.align || 'left') + ';font-size:' + cq(e.size || 14) + ';color:' + (e.color || th.ink) + ';font-family:' + f + ';' + (e.bold ? 'font-weight:700;' : '') + (e.italic ? 'font-style:italic;' : '') + 'line-height:' + (e.lh || 1.2) + '"><div>' + inner + '</div></div>';
+        var just = { top: 'flex-start', bottom: 'flex-end' }[e.valign] || 'center';
+        return '<div class="se st' + (e.vert ? ' vt' : '') + '" style="' + pos + (e.vert ? 'align-items:center;justify-content:' + just : 'justify-content:' + just) + ';text-align:' + (e.align || 'left') + ';font-size:' + cq(e.size || 14) + ';color:' + (e.color || th.ink) + ';font-family:' + FONT[e.font || 'zh'][0] + ';' + (e.bold ? 'font-weight:700;' : '') + (e.italic ? 'font-style:italic;' : '') + (e.ls ? 'letter-spacing:' + cq(e.ls) + ';' : '') + 'line-height:' + (e.lh || 1.2) + '"><div>' + inner + '</div></div>';
       }
-      if (e.t === 'img') return '<div class="se si" style="' + pos + '"><img src="' + esc(e.src) + '" alt="" loading="lazy"></div>';
-      if (e.t === 'stroke') return '<div class="se sw" data-ch="' + esc(e.ch) + '" style="' + pos + 'background-image:' + gridSvg(th.grid) + ';color:' + th.ink + ';font-size:' + cq(e.w * 72 * 0.8) + '"><span>' + esc(e.ch) + '</span></div>';
-      if (e.t === 'say') return '<span class="se say" role="button" data-say="' + esc(e.text.replace(/ /g, '')) + '" style="' + pos + 'background:' + th.accent + '" title="朗读">' + ICON_PLAY + '</span>';
+      if (e.t === 'img') return e.deco ? '<div class="se sd" style="' + pos + '"><img src="' + e.url + '" alt=""></div>' : '<div class="se si" style="' + pos + '"><img src="' + esc(e.src) + '" alt="" loading="lazy"></div>';
+      if (e.t === 'stroke') return '<div class="se sw" data-ch="' + esc(e.ch) + '" style="' + pos + 'background-color:' + (e.bg || th.card) + ';background-image:' + gridSvg(th.grid) + ';color:' + th.ink + ';font-size:' + cq(e.w * 72 * 0.8) + '"><span>' + esc(e.ch) + '</span></div>';
+      if (e.t === 'say') return '<span class="se say" role="button" data-say="' + esc(e.text.replace(/ /g, '')) + '" style="' + pos + 'background:' + (e.fill || th.accent) + ';color:' + onColor(e.fill || th.accent) + '" title="朗读">' + ICON_PLAY + '</span>';
       return '';
     }).join('') + '</div>';
   }
@@ -467,13 +927,14 @@
   function renderDeckOpts() {
     var th = themeNow();
     var sample = cart[0] || current || LIST[0][0], saved = cart; if (!cart.length) cart = [sample];
-    $('tpls').innerHTML = Object.keys(THEMES).map(function (k) {
+    $('tpls').innerHTML = Object.keys(STYLES).map(function (k) {
       var t = themeNow(k, k === deck.tpl ? deck.accent : '');
-      return '<button class="tpl' + (k === deck.tpl ? ' on' : '') + '" data-tpl="' + k + '">' + slideHTML(wordSlide(sample, 0, t), t, 'mini') + '<b>' + THEMES[k].name + '</b><small>' + THEMES[k].sub + '</small></button>';
+      return '<button class="tpl' + (k === deck.tpl ? ' on' : '') + '" data-tpl="' + k + '">' + slideHTML((LAY[k] || LAY.ink).word(info(sample), 0, t), t, 'mini') + '<b>' + STYLES[k].name + '</b><small>' + STYLES[k].sub + '</small></button>';
     }).join('');
     cart = saved;
     $('swatches').innerHTML = SWATCHES.map(function (c) { return '<button class="sw-c' + (c === th.accent ? ' on' : '') + '" data-color="' + c + '" style="background:' + c + '" title="' + c + '"></button>'; }).join('') +
-      '<label class="sw-pick" title="自选颜色"><input type="color" id="deckColor" value="' + th.accent + '"></label><button class="btn ghost sm" data-color="">默认</button>';
+      '<label class="sw-pick" title="自选颜色"><input type="color" id="deckColor" value="' + th.accent + '"></label><button class="btn ghost sm" data-color="">默认</button>' +
+      '<div class="palette">' + ['bg', 'tile', 'card', 'frame', 'accent', 'a2', 'ink'].map(function (k) { return '<i style="background:' + th[k] + '"></i>'; }).join('') + '<span>背景、卡片、图片框都按主色自动配色</span></div>';
     $('deckTitle').value = deck.title;
     var P = [['cover', '封面'], ['word', '词卡（字、拼音、意思、图片）'], ['stroke', '笔顺动画'], ['use', '搭配 · 例句'], ['review', '复习页'], ['dialog', '情境对话（AI 生成）']];
     $('deckParts').innerHTML = P.map(function (p) { return '<label><input type="checkbox" data-part="' + p[0] + '"' + (deck.parts[p[0]] ? ' checked' : '') + '> ' + p[1] + '</label>'; }).join('');
@@ -489,14 +950,14 @@
   studio.addEventListener('input', function (e) {
     var t = e.target;
     if (t.id === 'deckTitle') { deck.title = t.value.trim(); saveDeck(); clearTimeout(renderThumbs.t); renderThumbs.t = setTimeout(renderThumbs, 250); }
-    if (t.id === 'deckColor') { deck.accent = t.value; saveDeck(); clearTimeout(renderThumbs.c); renderThumbs.c = setTimeout(renderDeckOpts, 120); }
+    if (t.id === 'deckColor') { deck.accent = t.value; saveDeck(); clearTimeout(renderThumbs.c); renderThumbs.c = setTimeout(renderDeckOpts, 150); }
     if (t.id === 'exNote') { exCfg.note = t.value; saveEx(); }
   });
   studio.addEventListener('change', function (e) {
     var t = e.target;
     if (t.dataset.part) {
       deck.parts[t.dataset.part] = t.checked; saveDeck();
-      if (t.dataset.part === 'dialog' && t.checked && !aiKey()) { toast('情境对话需要 AI：请先填写 API key。'); openAi(); }
+      if (t.dataset.part === 'dialog' && t.checked && !aiKey()) { toast('情境对话需要 AI：请先在「AI 设置」里选服务并填写 API key。'); openAi(); }
       renderThumbs();
     }
     if (t.dataset.extype) { exCfg.on[t.dataset.extype] = t.checked; saveEx(); }
@@ -509,15 +970,14 @@
   var dlgCache = { key: '', data: null };
   async function ensureDialog(btn) {
     if (!deck.parts.dialog) return null;
-    var key = cart.join('|') + '#' + deck.title;
+    var key = cart.join('|') + '#' + deck.title + '#' + aiCfg.p;
     if (dlgCache.key === key && dlgCache.data) return dlgCache.data;
     if (!aiKey()) { toast('没有 API key，这次先不加情境对话。'); return null; }
     var old = btn && btn.textContent; if (btn) { btn.disabled = true; btn.textContent = 'AI 正在写对话…'; }
     try {
-      var words = cart.slice(0, 10).join('、');
       var res = await aiText({
-        user: 'Task: dialog\nTarget words: ' + words + '\nTopic hint: ' + (deck.title || '(none)') + '\nWrite ONE JSON line: {"type":"dialog","title":"<2-6 Chinese characters>","lines":[{"who":"A","zh":"...","py":"...","en":"..."}, ...]} with 4 to 6 lines alternating A and B. Each line max 12 characters. Use as many target words as is natural.',
-        maxTokens: 4000
+        user: 'Task: dialog\nTarget words: ' + cart.slice(0, 10).join('、') + '\nTopic hint: ' + (deck.title || '(none)') + '\nWrite ONE JSON line: {"type":"dialog","title":"<2-6 Chinese characters>","lines":[{"who":"A","zh":"...","py":"...","en":"..."}, ...]} with 4 to 6 lines alternating A and B. Each line max 12 characters. Use as many target words as is natural.',
+        maxTokens: 2000
       });
       var obj = parseLines(res.text).filter(function (o) { return o.lines; })[0];
       if (!obj) throw new Error('AI 返回的格式不对，请再试一次。');
@@ -571,7 +1031,7 @@
       var c = box.dataset.ch, size = Math.floor(box.clientWidth);
       box.innerHTML = '';
       var wr = HanziWriter.create(box, c, {
-        width: size, height: size, padding: size * 0.05, showOutline: true, strokeColor: showTh.ink, outlineColor: showTh.outline, radicalColor: showTh.accent,
+        width: size, height: size, padding: size * 0.05, showOutline: true, strokeColor: showTh.ink, outlineColor: showTh.outline, radicalColor: showTh.at,
         strokeAnimationSpeed: 1, delayBetweenStrokes: 220, delayBetweenLoops: 1600, charDataLoader: function (ch, done) { done(STROKES[ch]); }
       });
       wr.loopCharacterAnimation(); showWriters.push(wr);
@@ -588,14 +1048,14 @@
      5. PPTX 导出（PptxGenJS；笔顺 = GIF 动图，gifenc 编码）
      ===================================================================== */
   var gifCache = {};
-  function strokeGif(ch, th) {
-    var k = ch + th.card + th.ink + th.accent; if (gifCache[k]) return gifCache[k];
+  function strokeGif(ch, th, bg) {
+    bg = bg || th.card;
+    var k = ch + bg + th.ink + th.at; if (gifCache[k]) return gifCache[k];
     var d = STROKES[ch], S = 240, pad = S * 0.05, sc = (S - 2 * pad) / 1024;
-    var cv = document.createElement('canvas'); cv.width = cv.height = S;
-    var g = cv.getContext('2d', { willReadFrequently: true });
+    var cv = canvas(S, S), g = cv.getContext('2d', { willReadFrequently: true });
     var paths = d.strokes.map(function (p) { return new Path2D(p); });
     function base(upto) {
-      g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = th.card; g.fillRect(0, 0, S, S);
+      g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = bg; g.fillRect(0, 0, S, S);
       g.strokeStyle = th.grid; g.lineWidth = 1.4; g.setLineDash([6, 6]); g.beginPath();
       g.moveTo(0, 0); g.lineTo(S, S); g.moveTo(S, 0); g.lineTo(0, S); g.moveTo(S / 2, 0); g.lineTo(S / 2, S); g.moveTo(0, S / 2); g.lineTo(S, S / 2); g.stroke(); g.setLineDash([]);
       g.setTransform(sc, 0, 0, -sc, pad, pad + 900 * sc);
@@ -606,7 +1066,7 @@
       var m = d.medians[i], L = [0];
       for (var j = 1; j < m.length; j++) L.push(L[j - 1] + Math.hypot(m[j][0] - m[j - 1][0], m[j][1] - m[j - 1][1]));
       var target = L[L.length - 1] * frac;
-      g.save(); g.clip(paths[i]); g.strokeStyle = th.accent; g.lineWidth = 160; g.lineCap = 'round'; g.lineJoin = 'round';
+      g.save(); g.clip(paths[i]); g.strokeStyle = th.at; g.lineWidth = 160; g.lineCap = 'round'; g.lineJoin = 'round';
       g.beginPath(); g.moveTo(m[0][0], m[0][1]);
       for (var q = 1; q < m.length; q++) {
         if (L[q] <= target) g.lineTo(m[q][0], m[q][1]);
@@ -634,7 +1094,7 @@
       var im = new Image();
       im.onload = function () {
         try {
-          var W = 800, H = 600, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+          var W = 800, H = 600, cv = canvas(W, H);
           var r = Math.max(W / im.naturalWidth, H / im.naturalHeight), w = im.naturalWidth * r, h = im.naturalHeight * r;
           cv.getContext('2d').drawImage(im, (W - w) / 2, (H - h) / 2, w, h);
           res(cv.toDataURL('image/jpeg', 0.85));
@@ -666,19 +1126,26 @@
           if (e.t === 'rect') {
             sl.addShape(e.ellipse ? 'ellipse' : e.r ? 'roundRect' : 'rect', Object.assign({}, box, {
               fill: e.fill ? { color: hex(e.fill) } : { color: 'FFFFFF', transparency: 100 },
-              line: e.line ? { color: hex(e.line), width: e.lw || 1 } : { type: 'none' }, rectRadius: e.r || 0
+              line: e.line ? { color: hex(e.line), width: e.lw || 1, dashType: e.dash ? 'dash' : 'solid' } : { type: 'none' }, rectRadius: e.r || 0,
+              shadow: e.shadow ? { type: 'outer', color: '3C2814', opacity: 0.22, blur: 8, offset: 3, angle: 90 } : undefined
             }));
           } else if (e.t === 'text') {
             sl.addText(e.runs.map(function (r) {
               return { text: r.text, options: { fontSize: r.size || e.size || 14, color: hex(r.color || e.color || th.ink), bold: r.bold != null ? r.bold : !!e.bold, italic: !!e.italic, fontFace: FONT[r.font || e.font || 'zh'][1], breakLine: !!r.br } };
-            }), Object.assign({}, box, { align: e.align || 'left', valign: e.valign || 'middle', margin: 0, fontFace: FONT[e.font || 'zh'][1], fontSize: e.size || 14, color: hex(e.color || th.ink), paraSpaceAfter: e.gap || 0, lineSpacingMultiple: e.lh && e.lh > 1.25 ? e.lh * 0.85 : undefined }));
+            }), Object.assign({}, box, {
+              align: e.align || 'left', valign: e.valign || 'middle', margin: 0, fontFace: FONT[e.font || 'zh'][1], fontSize: e.size || 14, color: hex(e.color || th.ink),
+              paraSpaceAfter: e.gap || 0, lineSpacingMultiple: e.lh && e.lh > 1.25 ? e.lh * 0.85 : undefined, charSpacing: e.ls || undefined, vert: e.vert ? 'eaVert' : undefined
+            }));
           } else if (e.t === 'img') {
-            var data = await imgData(e.src);
+            var data = e.data || await imgData(e.src);
             if (data) sl.addImage(Object.assign({}, box, { data: data }));
             else { missingImg++; sl.addText('（图片）', Object.assign({}, box, { align: 'center', valign: 'middle', fontSize: 12, color: hex(th.ink2), fontFace: 'Microsoft YaHei' })); }
           } else if (e.t === 'stroke') {
-            sl.addImage(Object.assign({}, box, { data: strokeGif(e.ch, th) }));
+            sl.addImage(Object.assign({}, box, { data: strokeGif(e.ch, th, e.bg) }));
             await tick();
+          } else if (e.t === 'say') {
+            sl.addShape('ellipse', Object.assign({}, box, { fill: { color: hex(e.fill || th.accent) }, line: { type: 'none' } }));
+            sl.addText('♪', Object.assign({}, box, { align: 'center', valign: 'middle', margin: 0, fontSize: 14, color: hex(onColor(e.fill || th.accent)), fontFace: 'Segoe UI Symbol' }));
           }
         }
         if (s.notes) sl.addNotes(s.notes);
@@ -692,59 +1159,90 @@
   }
 
   /* =====================================================================
-     6. AI（Anthropic SDK，浏览器直连）
+     6. AI：老师自选服务商（DeepSeek、通义千问、Kimi、豆包……OpenAI 兼容接口），自带 API key
      ===================================================================== */
-  var SDK_URL = 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@1.6.0/+esm';
-  var sdkP = null;
-  function sdk() { return sdkP || (sdkP = import(SDK_URL).catch(function (e) { sdkP = null; throw e; })); }
-  function aiKey() { try { return sessionStorage.getItem('h1ref-ai-key') || localStorage.getItem('h1ref-ai-key') || ''; } catch (e) { return ''; } }
-  function aiModel() { return store.get('h1ref-ai-model', 'claude-opus-5-5'); }
+  var PROVIDERS = {
+    deepseek: { name: 'DeepSeek 深度求索', url: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat', site: 'platform.deepseek.com' },
+    qwen: { name: '通义千问 Qwen（阿里云百炼）', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: 'qwen-plus', site: 'bailian.console.aliyun.com' },
+    kimi: { name: 'Kimi（月之暗面）', url: 'https://api.moonshot.cn/v1/chat/completions', model: 'moonshot-v1-32k', site: 'platform.moonshot.cn' },
+    doubao: { name: '豆包（火山方舟）', url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: '', site: 'console.volcengine.com/ark', needModel: '请在“高级”里填写模型 ID 或接入点 ID（ep-…）。' },
+    siliconflow: { name: '硅基流动 SiliconFlow', url: 'https://api.siliconflow.cn/v1/chat/completions', model: 'deepseek-ai/DeepSeek-V3', site: 'cloud.siliconflow.cn' },
+    qianfan: { name: '百度千帆（文心）', url: 'https://qianfan.baidubce.com/v2/chat/completions', model: 'ernie-4.0-turbo-8k', site: 'console.bce.baidu.com/qianfan' },
+    hunyuan: { name: '腾讯混元', url: 'https://api.hunyuan.cloud.tencent.com/v1/chat/completions', model: 'hunyuan-turbos-latest', site: 'console.cloud.tencent.com/hunyuan' },
+    openai: { name: 'ChatGPT（OpenAI）', url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini', site: 'platform.openai.com' },
+    claude: { name: 'Claude（Anthropic）', kind: 'anthropic', model: 'claude-opus-5-5', site: 'console.anthropic.com' },
+    custom: { name: '其他（OpenAI 兼容接口）', url: '', model: '', site: '', needModel: '请在“高级”里填写接口地址和模型名称。' }
+  };
+  var aiCfg = Object.assign({ p: 'deepseek', models: {}, urls: {} }, store.get('h1ref-ai', {}));
+  if (!PROVIDERS[aiCfg.p]) aiCfg.p = 'deepseek';
+  try { var oldKey = localStorage.getItem('h1ref-ai-key'); if (oldKey && !localStorage.getItem('h1ref-key-claude')) localStorage.setItem('h1ref-key-claude', oldKey); localStorage.removeItem('h1ref-ai-key'); sessionStorage.removeItem('h1ref-ai-key'); } catch (e) {}
+  var saveAi = function () { store.set('h1ref-ai', aiCfg); };
+  function prov() { return PROVIDERS[aiCfg.p]; }
+  function aiModel() { return (aiCfg.models[aiCfg.p] || '').trim() || prov().model; }
+  function aiUrl() { return (aiCfg.urls[aiCfg.p] || '').trim() || prov().url; }
+  function keyName(p) { return 'h1ref-key-' + (p || aiCfg.p); }
+  function aiKey() { try { return sessionStorage.getItem(keyName()) || localStorage.getItem(keyName()) || ''; } catch (e) { return ''; } }
   function setKey(k, remember) {
     try {
-      sessionStorage.removeItem('h1ref-ai-key'); localStorage.removeItem('h1ref-ai-key');
-      if (k) (remember ? localStorage : sessionStorage).setItem('h1ref-ai-key', k);
+      sessionStorage.removeItem(keyName()); localStorage.removeItem(keyName());
+      if (k) (remember ? localStorage : sessionStorage).setItem(keyName(), k);
     } catch (e) {}
     paintAi();
   }
-  function paintAi() { var b = studio.querySelector('.st-ai'); if (b) b.classList.toggle('ok', !!aiKey()); }
-  function openAi() {
-    $('aiKey').value = aiKey();
-    var rem = false; try { rem = !!localStorage.getItem('h1ref-ai-key'); } catch (e) {}
-    $('aiRemember').checked = rem; $('aiModel').value = aiModel(); $('aiStat').textContent = '';
-    $('aiDlg').showModal();
+  function paintAi() {
+    var b = studio.querySelector('.st-ai'); if (!b) return;
+    b.classList.toggle('ok', !!aiKey());
+    b.innerHTML = 'AI：' + esc(prov().name.split(/[（ ]/)[0]) + '<i class="dot"></i>';
   }
+  function fillAiDlg() {
+    var p = prov();
+    $('aiProv').value = aiCfg.p;
+    $('aiKey').value = aiKey();
+    var rem = false; try { rem = !!localStorage.getItem(keyName()); } catch (e) {}
+    $('aiRemember').checked = rem;
+    $('aiModelIn').value = aiCfg.models[aiCfg.p] || ''; $('aiModelIn').placeholder = p.model || '模型名称';
+    $('aiUrlIn').value = aiCfg.urls[aiCfg.p] || ''; $('aiUrlIn').placeholder = p.url || 'https://…/v1/chat/completions';
+    $('aiUrlRow').hidden = p.kind === 'anthropic';
+    var host = p.kind === 'anthropic' ? 'api.anthropic.com' : (aiUrl().match(/^https?:\/\/([^/]+)/) || [, '你填写的接口地址'])[1];
+    $('aiHint').innerHTML = (p.site ? '在 <b>' + esc(p.site) + '</b> 创建 API key。' : '') + 'key 只保存在你的浏览器里，只发送给 <b>' + esc(host) + '</b>；费用按你的账户计算。' + (p.needModel && !aiModel() ? '<br><b>' + esc(p.needModel) + '</b>' : '') + (p.kind === 'anthropic' ? '' : '<br>默认模型：' + esc(aiModel() || '（未填写）'));
+    $('aiStat').textContent = ''; $('aiStat').className = 'stat';
+  }
+  function openAi() { fillAiDlg(); $('aiDlg').showModal(); }
+  $('aiProv').innerHTML = Object.keys(PROVIDERS).map(function (k) { return '<option value="' + k + '">' + esc(PROVIDERS[k].name) + '</option>'; }).join('');
+  $('aiProv').addEventListener('change', function () { aiCfg.p = this.value; saveAi(); fillAiDlg(); paintAi(); });
   $('aiKey').addEventListener('input', function () { setKey(this.value.trim(), $('aiRemember').checked); });
   $('aiRemember').addEventListener('change', function () { setKey($('aiKey').value.trim(), this.checked); });
-  $('aiModel').addEventListener('change', function () { store.set('h1ref-ai-model', this.value); });
+  $('aiModelIn').addEventListener('input', function () { aiCfg.models[aiCfg.p] = this.value.trim(); saveAi(); });
+  $('aiUrlIn').addEventListener('input', function () { aiCfg.urls[aiCfg.p] = this.value.trim(); saveAi(); });
+
   async function testAi() {
     var st = $('aiStat'); st.className = 'stat'; st.textContent = '连接中…';
     try {
-      var c = await aiClient();
-      var m = await c.models.retrieve(aiModel());
-      st.className = 'stat ok'; st.textContent = '✓ 可以使用 ' + (m.display_name || m.id);
+      if (prov().kind === 'anthropic') { var c = await claudeClient(); var m = await c.models.retrieve(aiModel()); st.className = 'stat ok'; st.textContent = '✓ 可以使用 ' + (m.display_name || m.id); return; }
+      var r = await compatText({ user: '只回答一个字：好', maxTokens: 8, test: true });
+      st.className = 'stat ok'; st.textContent = '✓ 连接成功（' + aiModel() + '）' + (r.text ? '：' + r.text.slice(0, 10) : '');
     } catch (e) { st.className = 'stat no'; st.textContent = aiError(e); }
-  }
-  async function aiClient() {
-    var key = aiKey(); if (!key) { var err = new Error('NOKEY'); err.code = 'nokey'; throw err; }
-    var mod = await sdk(); var Anthropic = mod.default || mod.Anthropic;
-    return new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true, maxRetries: 2 });
   }
   function aiError(e) {
     if (!e) return '未知错误';
     if (e.code === 'nokey') return '请先在「AI 设置」里填写 API key。';
+    if (e.code === 'nomodel') return prov().needModel || '请在「AI 设置 → 高级」里填写模型名称。';
+    if (e.code === 'nourl') return '请在「AI 设置 → 高级」里填写接口地址。';
     if (e.code === 'refusal') return 'AI 没有完成这个请求，请换一种要求再试。';
-    var s = e.status;
-    if (s === 401) return 'API key 不对，请检查后再试。';
-    if (s === 403) return '这个 key 没有权限使用所选模型。';
-    if (s === 404) return '找不到这个模型，请在「AI 设置」里换一个。';
+    var s = e.status, detail = e.detail ? '（' + String(e.detail).slice(0, 120) + '）' : '';
+    if (s === 401) return 'API key 不对，请检查后再试。' + detail;
+    if (s === 402) return '账户余额不足（402），请先充值。';
+    if (s === 403) return '这个 key 没有权限使用该模型。' + detail;
+    if (s === 404) return '找不到接口或模型（404），请检查「高级」里的模型名称 / 接口地址。' + detail;
     if (s === 429) return '请求太多或额度不足（429），请稍等再试。';
-    if (s === 529 || s === 503) return 'AI 服务现在很忙，请稍后再试。';
-    if (s === 400) return '请求被拒绝：' + ((e.error && e.error.error && e.error.error.message) || e.message);
-    if (!s) return '连不上 AI：请检查网络（需要能访问 api.anthropic.com 和 cdn.jsdelivr.net）。';
-    return 'AI 出错（' + s + '）：' + e.message;
+    if (s >= 500) return 'AI 服务现在很忙（' + s + '），请稍后再试。';
+    if (s === 400) return '请求被拒绝（400）' + (detail || '：' + e.message);
+    if (!s) return '连不上 AI：请检查网络；也可能是这个服务不允许网页直接访问，请换一个服务商。';
+    return 'AI 出错（' + s + '）' + detail;
   }
+  function fail(code) { var e = new Error(code); e.code = code; return e; }
 
-  /* 固定的系统提示（含 HSK1 全部词表）—— 每次请求都一样，开启提示缓存，几种题型并行时更快更省 */
+  /* 固定的系统提示（含 HSK1 全部词表）：每次请求都一样，DeepSeek 等服务会自动缓存相同前缀，Claude 用 cache_control */
   var SYSTEM = [
     'You write classroom materials for absolute beginners of Chinese: HSK 3.0 Level 1 (the 300 words listed below).',
     '',
@@ -757,9 +1255,9 @@
     '6. For choice questions: exactly 4 options, exactly one correct, distractors must be clearly wrong but plausible for beginners. "answer" must be copied exactly from "options".',
     '',
     'OUTPUT FORMAT',
-    'JSON Lines: one complete JSON object per line, nothing else — no markdown fences, no numbering, no comments, no blank lines.',
+    'JSON Lines: one complete JSON object per line, nothing else — no markdown fences, no numbering, no comments, no blank lines, no explanation before or after.',
     'Schemas by type:',
-    'blank:     {"type":"blank","q":"我 ＿＿ 妈妈。","options":["爱","吃","去","是"],"answer":"爱","en":"I love my mom."}   (q uses ＿＿ for the gap; spaces between words)',
+    'blank:     {"type":"blank","q":"我 ＿＿ 妈妈。","options":["爱","吃","去","是"],"answer":"爱","en":"I love my mom."}   (q uses ＿＿ for the gap)',
     'listen:    {"type":"listen","say":"<sentence read aloud to students>","q":"<short question in Chinese, HSK1 words only>","options":["…","…","…","…"],"answer":"…"}',
     'translate: {"type":"translate","dir":"zh-en" or "en-zh","q":"<source sentence>","answer":"<reference translation>","py":"<pinyin of the Chinese sentence>"}',
     'read:      {"type":"read","passage":"<3-5 short Chinese sentences forming a tiny text>","py":"<pinyin of the passage>","en":"<English translation>","qs":[{"q":"<question in Chinese>","options":["…","…","…","…"],"answer":"…"}]}   (2-3 questions per passage; one passage = one line)',
@@ -770,24 +1268,63 @@
     LIST.map(function (r) { return r[0] + '|' + r[1] + '|' + r[3]; }).join('\n')
   ].join('\n');
 
-  async function aiText(o) {
-    var c = await aiClient(), model = aiModel();
-    var body = {
-      model: model, max_tokens: o.maxTokens || 8000,
-      output_config: { effort: 'low' },
-      system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: o.user }]
-    };
-    var stream = model === 'claude-haiku-5-5'
-      ? c.messages.stream(body)
-      : c.beta.messages.stream(Object.assign({}, body, { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' }));
-    if (o.signal) o.signal.addEventListener('abort', function () { try { stream.abort(); } catch (e) {} });
+  function aiText(o) { return prov().kind === 'anthropic' ? claudeText(o) : compatText(o); }
+
+  /* OpenAI 兼容接口（DeepSeek / 通义千问 / Kimi / 豆包 / 硅基流动 / 千帆 / 混元 / OpenAI）：fetch + SSE 流式 */
+  async function compatText(o) {
+    var key = aiKey(), url = aiUrl(), model = aiModel();
+    if (!key) throw fail('nokey'); if (!url) throw fail('nourl'); if (!model) throw fail('nomodel');
+    var body = { model: model, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: o.user }], max_tokens: o.maxTokens || 4000, temperature: 0.7, stream: !o.test };
+    if (o.test) body.messages = [{ role: 'user', content: o.user }];
+    var res;
+    try { res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: JSON.stringify(body) }); }
+    catch (e) { var ne = new Error(e.message); ne.status = 0; throw ne; }
+    if (!res.ok) {
+      var txt = ''; try { txt = await res.text(); } catch (e) {}
+      var msg = txt; try { var j = JSON.parse(txt); msg = (j.error && (j.error.message || j.error.code)) || j.message || j.msg || txt; } catch (e) {}
+      var er = new Error('HTTP ' + res.status); er.status = res.status; er.detail = msg; throw er;
+    }
+    if (o.test) { var tj = await res.json(); return { text: (tj.choices && tj.choices[0] && tj.choices[0].message && tj.choices[0].message.content) || '' }; }
+    var reader = res.body.getReader(), dec = new TextDecoder(), buf = '', full = '';
+    for (;;) {
+      var r = await reader.read(); if (r.done) break;
+      buf += dec.decode(r.value, { stream: true });
+      var i;
+      while ((i = buf.indexOf('\n')) >= 0) {
+        var line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+        if (line.indexOf('data:') !== 0) continue;
+        var d = line.slice(5).trim(); if (!d || d === '[DONE]') continue;
+        var obj = null; try { obj = JSON.parse(d); } catch (e) { continue; }
+        if (obj.error) { var se = new Error('stream error'); se.status = 400; se.detail = obj.error.message || JSON.stringify(obj.error); throw se; }
+        var c = obj.choices && obj.choices[0], t = c && c.delta && c.delta.content;
+        if (t) { full += t; if (o.onText) o.onText(t); }
+      }
+    }
+    return { text: full };
+  }
+
+  /* Claude（Anthropic SDK，浏览器直连） */
+  var SDK_URL = 'https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@1.6.0/+esm';
+  var sdkP = null;
+  function sdk() { return sdkP || (sdkP = import(SDK_URL).catch(function (e) { sdkP = null; throw e; })); }
+  async function claudeClient() {
+    var key = aiKey(); if (!key) throw fail('nokey');
+    var mod = await sdk(); var Anthropic = mod.default || mod.Anthropic;
+    return new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true, maxRetries: 2 });
+  }
+  async function claudeText(o) {
+    var c = await claudeClient(), model = aiModel(), gen5 = /^claude-(opus|sonnet|haiku)-5/.test(model);
+    var body = { model: model, max_tokens: o.maxTokens ? Math.max(o.maxTokens * 2, 4000) : 8000, system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content: o.user }] };
+    if (gen5) body.output_config = { effort: 'low' };
+    var stream = /^claude-(opus|sonnet)-5-5/.test(model)
+      ? c.beta.messages.stream(Object.assign({}, body, { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' }))
+      : c.messages.stream(body);
     if (o.onText) stream.on('text', o.onText);
     var msg = await stream.finalMessage();
-    if (msg.stop_reason === 'refusal') { var err = new Error('refusal'); err.code = 'refusal'; throw err; }
+    if (msg.stop_reason === 'refusal') throw fail('refusal');
     var blocks = msg.content, fi = blocks.map(function (b) { return b.type; }).lastIndexOf('fallback');
     if (fi >= 0) blocks = blocks.slice(fi + 1);
-    return { text: blocks.filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join(''), msg: msg };
+    return { text: blocks.filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('') };
   }
   function lineParser(onObj) {
     var buf = '';
@@ -908,7 +1445,7 @@
       '\nWrite exactly ' + n + ' JSON lines of type "' + s.type + '".';
     var p = lineParser(function (o) { if (run !== exRun) return; s.items.push(normalize(o, s.type)); renderSection(i); });
     try {
-      var res = await aiText({ user: user, maxTokens: s.type === 'read' ? 10000 : 7000, onText: function (t) { if (run === exRun) p.push(t); } });
+      var res = await aiText({ user: user, maxTokens: s.type === 'read' ? 6000 : 4000, onText: function (t) { if (run === exRun) p.push(t); } });
       if (run !== exRun) return;
       var final = parseLines(res.text);
       if (final.length) s.items = final.map(function (o) { return normalize(o, s.type); });
