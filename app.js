@@ -240,6 +240,7 @@
     document.title = word + ' ' + row[1] + ' · HSK1 教学参考';
     mountWriters(word);
     renderList();
+    document.dispatchEvent(new CustomEvent('h1:render', { detail: { word: word } }));
     $('side').classList.remove('open');
     window.scrollTo(0, 0);
   }
@@ -283,5 +284,6 @@
   $('menuBtn').addEventListener('click', function () { $('side').classList.toggle('open'); });
   $('scrim').addEventListener('click', function () { $('side').classList.remove('open'); });
   window.addEventListener('hashchange', render);
+  window.H1speak = speak; window.H1toast = toast;
   render();
 })();
